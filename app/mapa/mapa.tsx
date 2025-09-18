@@ -1,7 +1,9 @@
+import { Stack, useLocalSearchParams } from "expo-router";
 import { View , Text,StyleSheet} from "react-native";
 import MapView,{Marker} from 'react-native-maps'
 
 export default function Mapa(){
+    const {nombre} = useLocalSearchParams<{nombre?:string}>();
     const initialRegion={
         latitude:24.022,
         longitude:-104.653,
@@ -10,6 +12,7 @@ export default function Mapa(){
     }
     return(
         <View style={styles.container}>
+            <Stack.Screen options={{title: nombre ? String(nombre): "Mapa"}}/>
             <MapView
                 style={styles.map}
                 initialRegion={initialRegion}
