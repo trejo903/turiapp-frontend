@@ -1,7 +1,8 @@
 import { getCategorias } from "@/src/lib/api";
 import { Link, Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Text, View, StyleSheet, Pressable } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import Card from "./card";
 
 type Categoria = {
   id: number | string;
@@ -95,6 +96,31 @@ export default function Index() {
         }}
         ListEmptyComponent={<Text>Sin datos</Text>}
       />
+      <View style={{ alignItems: "center", marginBottom: 20 }}>
+        <Card
+          title="Más opciones"
+          options={[
+            { label: "Perfil", path: "/perfil" },
+            { label: "Mis Compras", path: "/mis-compras" },
+            { label: "Configuración", path: "/configuracion" },
+          ]}
+          />
+        <Card
+          title="Explorar"
+          options={[
+            { label: "Mapa", path: "/mapa/mapa" },
+            { label: "Eventos", path: "/eventos" },
+          ]}
+        />
+
+        <Card
+          title="Ayuda"
+          options={[
+            { label: "Preguntas Frecuentes", path: "/faq" },
+            { label: "Soporte", path: "/soporte" },
+          ]}
+        />
+      </View>
     </View>
   );
 }
@@ -115,9 +141,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 
-  
   cardInner: {
-    height: 130,               
+    height: 130,
     borderRadius: 14,
     padding: 12,
     justifyContent: "space-between",
