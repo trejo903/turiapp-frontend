@@ -56,6 +56,16 @@ export default function Usuario(){
                 >
                     <Text style={styles.buttonText}>{isSubmitting ? "Enviando..." : "Continuar"}</Text>
                 </Pressable>
+                <Link
+                    href={'/(tabs)/usuario/crearcuenta'}
+                    asChild
+                >
+                    <Pressable style={{paddingVertical:12}}>
+                        <Text style={{textAlign:"center",fontWeight:"700"}}>
+                            ¿No tienes cuenta? Crea una
+                        </Text>
+                    </Pressable>
+                </Link>
             </View>
         </KeyboardAvoidingView>
     )
