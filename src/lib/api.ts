@@ -40,9 +40,16 @@ export async function getSitiosByCategoria(categoriaId:number):Promise<Sitio[]> 
 
 
 export async function getCategorias() {
-    const res = await fetch(`${BASE_URL}/categorias`)
-    if(!res.ok){
-        throw new Error(`HTTP ${res.status}`)
-    }
-    return res.json()
+  const res = await fetch(`${BASE_URL}/categorias`);
+  if (!res.ok) throw new Error("No se pudo cargar categorías");
+  const json = await res.json();
+
+
+  const arr = Array.isArray(json) ? json : json?.data ?? [];
+  return arr.map((c: any) => ({
+    id: c.id,
+    nombre: c.nombre,
+    img: c.img ?? null,
+    color: c.color ?? null, 
+  }));
 }

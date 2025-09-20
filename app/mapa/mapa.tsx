@@ -1,8 +1,10 @@
 import { getSitiosByCategoria, Sitio } from "@/src/lib/api";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { View , Text,StyleSheet} from "react-native";
+import { View , Text,StyleSheet, Image} from "react-native";
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import MapView,{Marker} from 'react-native-maps'
+import CLEAN_STYLE from '../../assets/map-style-clean.json';
 
 export default function Mapa(){
     const {nombre,catId} = useLocalSearchParams<{nombre?:string,catId:string}>();
@@ -51,17 +53,23 @@ export default function Mapa(){
         <View style={styles.container}>
             <Stack.Screen options={{title: nombre ? String(nombre): "Mapa"}}/>
             <MapView
+                customMapStyle={CLEAN_STYLE} 
                 style={styles.map}
                 initialRegion={initialRegion}
                 ref={mapRef}
+                showsPointsOfInterest={false} 
+                showsBuildings={false}   
             >
             {sitios.map(s=>(
                 <Marker
                 key={s.id}
                 coordinate={{latitude:s.latitude as number,longitude:s.longitude as number}}
                 title={s.nombre}
-                description="Mi punto inicial" 
-            />
+                anchor={{x:0.5,y:1}}
+                
+                >
+                    <MaterialCommunityIcons name="map-marker" size={36} color="#0d0575ff" />
+                </Marker>
             ))}
             
             </MapView>
