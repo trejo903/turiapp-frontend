@@ -1,20 +1,20 @@
-// app/(tabs)/card.tsx
+// app/(tabs)/Card.tsx
 import { Link } from "expo-router";
 import { useState } from "react";
 import { LayoutAnimation, Platform, Pressable, StyleSheet, Text, UIManager, View } from "react-native";
 
-// Necesario para animaciones en Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const options = [
-  { label: "Mi Perfil", path: "/perfil" },
-  { label: "Mis Compras", path: "/mis-compras" },
-  { label: "Configuración", path: "/configuracion" },
-];
+type Option = { label: string; path: string };
 
-export default function Card() {
+type CardProps = {
+  title: string;
+  options: Option[];
+};
+
+export default function Card({ title, options }: CardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const toggleExpand = () => {
@@ -24,13 +24,11 @@ export default function Card() {
 
   return (
     <View style={styles.container}>
-      {/* Cabecera de la tarjeta */}
       <Pressable onPress={toggleExpand} style={styles.card}>
-        <Text style={styles.title}>Más opciones</Text>
+        <Text style={styles.title}>{title}</Text>
         <Text style={styles.arrow}>{expanded ? "▲" : "▼"}</Text>
       </Pressable>
 
-      {/* Opciones desplegables */}
       {expanded && (
         <View style={styles.optionsContainer}>
           {options.map((opt) => (
@@ -52,7 +50,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   card: {
-    height: 88,
+    height: 65,
     backgroundColor: "#D9D9D9",
     borderRadius: 5,
     paddingHorizontal: 16,

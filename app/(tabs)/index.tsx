@@ -1,7 +1,15 @@
+// app/(tabs)/index.tsx
 import { getCategorias } from "@/src/lib/api";
 import { Link, Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import Card from "./card";
 
 type Categoria = {
@@ -30,10 +38,10 @@ export default function Index() {
     (async () => {
       try {
         const cats = await getCategorias();
-        console.log("Ejemplo:", cats[0]); // verifica que traiga color
+        console.log("Ejemplo:", cats[0]);
         setData(cats);
       } catch (e: any) {
-        setError(e?.message ?? "Error al cargar las categorias");
+        setError(e?.message ?? "Error al cargar las categorías");
       } finally {
         setLoading(false);
       }
@@ -59,7 +67,6 @@ export default function Index() {
   return (
     <View style={{ flex: 1, paddingTop: 20 }}>
       <Stack.Screen options={{ title: "TuriApp" }} />
-      <Text style={styles.subtitle}>Lugares por conocer</Text>
 
       <FlatList
         data={data}
@@ -71,7 +78,6 @@ export default function Index() {
           const bg = (item.color ?? "#f5f5f5").trim();
           const fg = getContrastText(bg);
 
-
           return (
             <Link
               href={{
@@ -80,10 +86,15 @@ export default function Index() {
               }}
               asChild
             >
-              <Pressable android_ripple={{ color: "#00000022" }} style={styles.card}>
-                {/* CONTENEDOR PRINCIPAL PINTADO */}
+              <Pressable
+                android_ripple={{ color: "#00000022" }}
+                style={styles.card}
+              >
                 <View style={[styles.cardInner, { backgroundColor: bg }]}>
-                  <Text numberOfLines={2} style={[styles.cardTitle, { color: fg }]}>
+                  <Text
+                    numberOfLines={2}
+                    style={[styles.cardTitle, { color: fg }]}
+                  >
                     {item.nombre}
                   </Text>
                   <Text style={[styles.cardCta, { color: fg, opacity: 0.9 }]}>
@@ -95,35 +106,45 @@ export default function Index() {
           );
         }}
         ListEmptyComponent={<Text>Sin datos</Text>}
-      />
-      <View style={{ alignItems: "center", marginBottom: 20 }}>
-        <Card
-          title="Más opciones"
-          options={[
-            { label: "Perfil", path: "/perfil" },
-            { label: "Mis Compras", path: "/mis-compras" },
-            { label: "Configuración", path: "/configuracion" },
-          ]}
-          />
-        <Card
-          title="Explorar"
-          options={[
-            { label: "Mapa", path: "/mapa/mapa" },
-            { label: "Eventos", path: "/eventos" },
-          ]}
-        />
+        // 👇 Ahora usamos Header y Footer en lugar de ScrollView
+        ListHeaderComponent={
+          <Text style={styles.subtitle}>Lugares por conocer</Text>
+        }
+        ListFooterComponent={
+          <View style={{ alignItems: "center", marginBottom: 20 }}>
+            <Card
+              title="Ocio"
+              options={[
+                { label: "Cines", path: "/ocio/cines" },
+                { label: "Bares", path: "/ocio/bares" },
+                { label: "Museos", path: "/ocio/museos" },
+              ]}
+            />
 
-        <Card
-          title="Ayuda"
-          options={[
-            { label: "Preguntas Frecuentes", path: "/faq" },
-            { label: "Soporte", path: "/soporte" },
-          ]}
-        />
-      </View>
+            <Card
+              title="Gastronomía"
+              options={[
+                { label: "Restaurantes", path: "/gastronomia/restaurantes" },
+                { label: "Cafeterías", path: "/gastronomia/cafeterias" },
+                { label: "Comida rápida", path: "/gastronomia/fastfood" },
+              ]}
+            />
+
+            <Card
+              title="Relax"
+              options={[
+                { label: "Spas", path: "/relax/spas" },
+                { label: "Balnearios", path: "/relax/balnearios" },
+                { label: "Parques", path: "/relax/parques" },
+              ]}
+            />
+          </View>
+        }
+      />
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   subtitle: { fontSize: 20, textAlign: "center", marginBottom: 12 },
