@@ -4,7 +4,8 @@ import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from "@hookform/resolvers/zod";
 import {z} from 'zod'
 import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams,useRouter } from "expo-router";
+import { BASE_URL } from '@/src/lib/api';
 
 
 
@@ -20,6 +21,7 @@ type FormData = z.infer<typeof shema>
 
 
 export default function PasswordScreen(){
+  const routerNext = useRouter();
     const { email, userId } = useLocalSearchParams<{ email: string; userId: string }>();
     const router = useRoute()
     const[showPass,setShowPass]=useState(false)
@@ -30,23 +32,35 @@ export default function PasswordScreen(){
         defaultValues:{password:"",confirm:""}
     })
     const onSubmit = async ({ password }: FormData) => {
-    try {
-      const res = await fetch("https://tu-backend.com/api/usuario/registrar/password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
+  try {
+    const res = await fetch(`${BASE_URL}/usuarios/${userId}/password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
 
-      if (!res.ok) {
-        const err = await res.text();
-        throw new Error(err || "Error al guardar la contraseña");
-      }
-
-      alert("Contraseña guardada ✅");
-    } catch (e: any) {
-      alert(e.message ?? "Ocurrió un error");
+    if (!res.ok) {
+      const err = await res.text().catch(() => "");
+      throw new Error(err || "Error al guardar la contraseña");
     }
-  };
+
+    // ⬇️ Intentamos leer { id, correo } por si lo regresa el backend
+    let data: { id?: string | number; correo?: string } | null = null;
+    try { data = await res.json(); } catch {}
+
+    const nextUserId = String(data?.id ?? userId ?? "");
+    const nextEmail  = String(data?.correo ?? email ?? "");
+
+    // Navega a la pantalla de información con los params
+    routerNext.replace({
+      pathname: "/(tabs)/usuario/crearcuenta/informacion",
+      params: { userId: nextUserId, email: nextEmail },
+    });
+
+  } catch (e: any) {
+    alert(e?.message ?? "Ocurrió un error");
+  }
+};
   return (
     <View style={{ flex: 1, padding: 16, gap: 14, backgroundColor: "white" }}>
       

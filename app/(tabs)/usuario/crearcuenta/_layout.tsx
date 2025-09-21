@@ -4,6 +4,8 @@ export default function CrearCuentaLayout() {
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }}  />
       <Stack.Screen name="password" options={{ headerShown: false }}  />
+      <Stack.Screen name="informacion" options={{ headerShown: false }}  />
+      <Stack.Screen name="ultimo" options={{ headerShown: false }}  />
     </Stack>
   );
 }
