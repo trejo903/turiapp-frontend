@@ -1,5 +1,9 @@
 import {Controller, useForm} from 'react-hook-form'
 import { View,Text, KeyboardAvoidingView, Platform, StyleSheet, TextInput, Pressable, Alert } from "react-native";
+import { useRouter } from "expo-router";
+
+const router = useRouter();
+
 
 type FormValues={
     email:string
@@ -31,9 +35,12 @@ export default function CrearCuenta(){
                 const text = await res.text().catch(()=>"")
                 throw new Error(text || `Error ${res.status}`)
             }
-            const data = await res.json()
-            Alert.alert("Listo correo registrado")
-            reset()
+            const data:{id:number | string;correo:string} = await res.json()
+             router.push({
+      pathname: "/(tabs)/usuario/crearcuenta/password",
+      params: { email: data.correo, userId: String(data.id) },
+    });
+        
         } catch (error:any) {
             setError("email",{type:"server",message:error?.message || "error al registrar"})
         }

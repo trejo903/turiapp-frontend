@@ -29,7 +29,6 @@ export default function Index() {
     (async () => {
       try {
         const cats = await getCategorias();
-        console.log("Ejemplo:", cats[0]); // verifica que traiga color
         setData(cats);
       } catch (e: any) {
         setError(e?.message ?? "Error al cargar las categorias");
