@@ -1,7 +1,8 @@
+//app/mapa/mapa.tsx
 import { getSitiosByCategoria, Sitio } from "@/src/lib/api";
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Link, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Image, Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker } from 'react-native-maps';
@@ -167,6 +168,12 @@ export default function Mapa() {
                   </View>
                 )}
               </View>
+              {/* Botón Más información */}
+              <Link href={`/sitios/${selectedSitio.id}`} asChild>
+                <TouchableOpacity style={styles.moreInfoButton}>
+                  <Text style={styles.moreInfoText}>Más información</Text>
+                </TouchableOpacity>
+              </Link>
             </View>
           ) : (
             <View style={styles.placeholder}>
@@ -282,5 +289,17 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  moreInfoButton: {
+  marginTop: 12,
+  backgroundColor: "#0d0575ff",
+  padding: 12,
+  borderRadius: 8,
+  alignItems: "center",
+  },
+  moreInfoText: {
+  color: "#fff",
+  fontSize: 16,
+  fontWeight: "600",
   },
 });
