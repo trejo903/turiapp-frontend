@@ -41,7 +41,12 @@ export default function NextLogin() {
     try {
       const res = await fetch(`${BASE_URL}/usuarios/login-password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        // Si tu backend usa cookies httpOnly para sesión:
+        credentials: "include",
         body: JSON.stringify({ correo: email, password }),
       });
 
@@ -58,16 +63,16 @@ export default function NextLogin() {
         throw new Error(text || `Error ${res.status}`);
       }
 
-      // Esperado: { token, user: { id, correo, nombre, ... } }
-      const body: any = await res.json();
+      // esperado opcionalmente: { user: { id, correo, ... } }
+      const body: any = await res.json().catch(() => ({}));
 
-      // (Opcional) guarda token con SecureStore/AsyncStorage
-      // await SecureStore.setItemAsync("token", body.token);
-
-      // Navega a perfil
       const uid = String(body?.user?.id ?? "");
       const uemail = String(body?.user?.correo ?? email ?? "");
-      router.replace({ pathname: "/(tabs)/usuario/perfil", params: { userId: uid, email: uemail } });
+
+      router.replace({
+        pathname: "/(tabs)/usuario/perfil",
+        params: { userId: uid, email: uemail },
+      });
     } catch (e: any) {
       Alert.alert("No pudimos iniciar sesión", e?.message ?? "Intenta de nuevo");
     }
