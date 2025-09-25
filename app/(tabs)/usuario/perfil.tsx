@@ -113,7 +113,7 @@ export default function Perfil() {
       setStatusText("Inicia sesión de nuevo para editar");
       return;
     }
-    // router.push({ pathname: "/(tabs)/usuario/editar", params: { userId: profile.id } });
+    router.push({ pathname: "/(tabs)/usuario/opciones/editarperfil", params: { userId: profile.id } });
   };
 
   const handleChangePassword = () => {
@@ -121,7 +121,7 @@ export default function Perfil() {
       setStatusText("Inicia sesión de nuevo para cambiar contraseña");
       return;
     }
-    router.push({ pathname: "/(tabs)/usuario/login", params: { email: profile.correo } });
+    router.push({ pathname: "/(tabs)/usuario/opciones/cambiarpassword", params: { email: profile.correo } });
   };
 
   const handleLogout = async () => {
