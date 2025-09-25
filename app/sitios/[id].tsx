@@ -1,10 +1,22 @@
+import { getOpinionesBySitio } from "@/src/lib/api";
 import { useLocalSearchParams } from "expo-router";
-import { FlatList, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+
+type Opinion = {
+  id: number;
+  usuario: { nombre: string }; // depende de lo que devuelva tu backend
+  comentario: string;
+  puntuacion: number;
+};
 
 export default function SitioScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [opiniones, setOpiniones] = useState<Opinion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Datos simulados del sitio
+  // Datos del sitio (todavía simulados, pero puedes traerlos de la API igual)
   const sitio = {
     id,
     nombre: "Parque Guadiana",
@@ -17,38 +29,45 @@ export default function SitioScreen() {
     calle: "Av. 20 de Noviembre",
   };
 
-  // Valoraciones simuladas
-  const valoraciones = [
-    { id: 1, usuario: "Ana", comentario: "Muy bonito lugar", puntuacion: 5 },
-    { id: 2, usuario: "Luis", comentario: "Algo descuidado pero vale la pena", puntuacion: 3 },
-    { id: 3, usuario: "Marta", comentario: "Perfecto para pasear en familia", puntuacion: 4 },
-  ];
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getOpinionesBySitio(Number(id));
+        setOpiniones(data);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [id]);
 
   return (
     <ScrollView style={styles.container}>
-      {/* Imagen principal */}
       <Image source={{ uri: sitio.img }} style={styles.image} />
 
-      {/* Datos generales */}
       <Text style={styles.title}>{sitio.nombre}</Text>
       <Text style={styles.subtitle}>{sitio.municipio}, {sitio.estado}</Text>
       <Text style={styles.info}>Tel: {sitio.telefono}</Text>
       <Text style={styles.info}>{sitio.calle}, {sitio.fraccionamiento}, CP {sitio.cp}</Text>
 
-      {/* Sección de valoraciones */}
       <Text style={styles.sectionTitle}>Valoraciones</Text>
+
+      {loading && <ActivityIndicator size="large" />}
+      {error && <Text style={{ color: "red" }}>{error}</Text>}
+
       <FlatList
-        data={valoraciones}
+        data={opiniones}
         keyExtractor={(v) => v.id.toString()}
         renderItem={({ item }) => (
           <View style={styles.reviewCard}>
             <Text style={styles.reviewUser}>
-              {item.usuario} ({item.puntuacion}⭐)
+              {item.usuario?.nombre ?? "Anónimo"} ({item.puntuacion}⭐)
             </Text>
             <Text>{item.comentario}</Text>
           </View>
         )}
-        scrollEnabled={false} // para que ScrollView maneje el scroll completo
+        scrollEnabled={false}
       />
     </ScrollView>
   );

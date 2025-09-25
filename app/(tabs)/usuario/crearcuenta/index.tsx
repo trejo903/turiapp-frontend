@@ -1,6 +1,6 @@
-import {Controller, useForm} from 'react-hook-form'
-import { View,Text, KeyboardAvoidingView, Platform, StyleSheet, TextInput, Pressable, Alert } from "react-native";
 import { useRouter } from "expo-router";
+import { Controller, useForm } from 'react-hook-form';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 const router = useRouter();
 
@@ -9,7 +9,7 @@ type FormValues={
     email:string
 }
 
-const API_URL = "http://192.168.1.6:5001/api"; 
+const API_URL = "http://192.168.1.73:5001/api"; 
 
 export default function CrearCuenta(){
     const{control,handleSubmit,formState:{errors,isSubmitted,isSubmitting,isValid},setError,reset} = useForm({
