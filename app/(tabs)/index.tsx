@@ -1,7 +1,15 @@
 import { getCategorias } from "@/src/lib/api";
 import { Link, Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Text, View, StyleSheet, Pressable } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 type Categoria = {
   id: number | string;
@@ -55,10 +63,49 @@ export default function Index() {
   }
 
   return (
-    <View style={{ flex: 1, paddingTop: 20 }}>
+    <ScrollView style={{ flex: 1, paddingTop: 20 }}>
       <Stack.Screen options={{ title: "TuriApp" }} />
       <Text style={styles.subtitle}>Lugares por conocer</Text>
 
+      {/* 🔹 Bloque de botones de navegación rápida */}
+      <View style={styles.quickNav}>
+        <Text style={styles.sectionTitle}>Accesos rápidos</Text>
+        <View style={styles.quickNavRow}>
+          <Link href="/reserva" asChild>
+            <Pressable style={styles.quickButton}>
+              <Text style={styles.quickButtonText}>Reserva</Text>
+            </Pressable>
+          </Link>
+          <Link href="/confirmacion" asChild>
+            <Pressable style={styles.quickButton}>
+              <Text style={styles.quickButtonText}>Confirmación</Text>
+            </Pressable>
+          </Link>
+        </View>
+
+        <View style={styles.quickNavRow}>
+          <Link href="/idioma" asChild>
+            <Pressable style={styles.quickButton}>
+              <Text style={styles.quickButtonText}>Idioma</Text>
+            </Pressable>
+          </Link>
+          <Link href="/calculadora" asChild>
+            <Pressable style={styles.quickButton}>
+              <Text style={styles.quickButtonText}>Recorridos</Text>
+            </Pressable>
+          </Link>
+        </View>
+
+        <View style={styles.quickNavRow}>
+          <Link href="/recomendaciones" asChild>
+            <Pressable style={styles.quickButton}>
+              <Text style={styles.quickButtonText}>Recomendaciones</Text>
+            </Pressable>
+          </Link>
+        </View>
+      </View>
+
+      {/* 🔹 Lista de categorías */}
       <FlatList
         data={data}
         keyExtractor={(item) => String(item.id)}
@@ -69,7 +116,6 @@ export default function Index() {
           const bg = (item.color ?? "#f5f5f5").trim();
           const fg = getContrastText(bg);
 
-
           return (
             <Link
               href={{
@@ -78,10 +124,15 @@ export default function Index() {
               }}
               asChild
             >
-              <Pressable android_ripple={{ color: "#00000022" }} style={styles.card}>
-                {/* CONTENEDOR PRINCIPAL PINTADO */}
+              <Pressable
+                android_ripple={{ color: "#00000022" }}
+                style={styles.card}
+              >
                 <View style={[styles.cardInner, { backgroundColor: bg }]}>
-                  <Text numberOfLines={2} style={[styles.cardTitle, { color: fg }]}>
+                  <Text
+                    numberOfLines={2}
+                    style={[styles.cardTitle, { color: fg }]}
+                  >
                     {item.nombre}
                   </Text>
                   <Text style={[styles.cardCta, { color: fg, opacity: 0.9 }]}>
@@ -94,14 +145,28 @@ export default function Index() {
         }}
         ListEmptyComponent={<Text>Sin datos</Text>}
       />
-    </View>
+    </ScrollView>
   );
 }
+
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   subtitle: { fontSize: 20, textAlign: "center", marginBottom: 12 },
-  row: { justifyContent: "space-between", marginBottom: 12 },
 
+  sectionTitle: { fontSize: 16, fontWeight: "600", marginBottom: 10 },
+  quickNav: { paddingHorizontal: 16, marginBottom: 20 },
+  quickNavRow: { flexDirection: "row", justifyContent: "space-between" },
+  quickButton: {
+    flex: 1,
+    backgroundColor: "#211C1C",
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    marginBottom: 10,
+  },
+  quickButtonText: { color: "#fff", textAlign: "center", fontWeight: "600" },
+
+  row: { justifyContent: "space-between", marginBottom: 12 },
   card: {
     flex: 1,
     marginHorizontal: 4,
@@ -113,15 +178,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     overflow: "hidden",
   },
-
-  
   cardInner: {
-    height: 130,               
+    height: 130,
     borderRadius: 14,
     padding: 12,
     justifyContent: "space-between",
   },
-
   cardTitle: { fontSize: 15, fontWeight: "700" },
   cardCta: { fontSize: 12, fontWeight: "600" },
 });

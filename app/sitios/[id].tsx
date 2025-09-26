@@ -1,11 +1,22 @@
-import { getOpinionesBySitio } from "@/src/lib/api";
+import { createOpinion, getOpinionesBySitio } from "@/src/lib/api";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 type Opinion = {
   id: number;
-  usuario: { nombre: string }; // depende de lo que devuelva tu backend
+  usuario: { nombre: string };
   comentario: string;
   puntuacion: number;
 };
@@ -15,8 +26,14 @@ export default function SitioScreen() {
   const [opiniones, setOpiniones] = useState<Opinion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [comentario, setComentario] = useState("");
+  const [puntuacion, setPuntuacion] = useState(5);
+  const [enviando, setEnviando] = useState(false);
 
-  // Datos del sitio (todavía simulados, pero puedes traerlos de la API igual)
+  //Token simulado (luego se reemplaza por el del login real)
+  const token = "TOKEN_DE_PRUEBA";
+
+  // Datos del sitio (simulado)
   const sitio = {
     id,
     nombre: "Parque Guadiana",
@@ -29,6 +46,7 @@ export default function SitioScreen() {
     calle: "Av. 20 de Noviembre",
   };
 
+  // Cargar opiniones
   useEffect(() => {
     (async () => {
       try {
@@ -42,34 +60,72 @@ export default function SitioScreen() {
     })();
   }, [id]);
 
+  // Enviar nueva opinión
+  const handleEnviarOpinion = async () => {
+    try {
+      setEnviando(true);
+      const nueva = await createOpinion(token, Number(id), comentario, puntuacion);
+      setOpiniones((prev) => [nueva, ...prev]); // agrega la nueva opinión arriba
+      setComentario("");
+      setPuntuacion(5);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setEnviando(false);
+    }
+  };
+
   return (
-    <ScrollView style={styles.container}>
-      <Image source={{ uri: sitio.img }} style={styles.image} />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"} // iOS sube, Android ajusta altura
+      keyboardVerticalOffset={80} // ajusta según tu header
+    >
+      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+        <Image source={{ uri: sitio.img }} style={styles.image} />
 
-      <Text style={styles.title}>{sitio.nombre}</Text>
-      <Text style={styles.subtitle}>{sitio.municipio}, {sitio.estado}</Text>
-      <Text style={styles.info}>Tel: {sitio.telefono}</Text>
-      <Text style={styles.info}>{sitio.calle}, {sitio.fraccionamiento}, CP {sitio.cp}</Text>
+        <Text style={styles.title}>{sitio.nombre}</Text>
+        <Text style={styles.subtitle}>
+          {sitio.municipio}, {sitio.estado}
+        </Text>
+        <Text style={styles.info}>Tel: {sitio.telefono}</Text>
+        <Text style={styles.info}>
+          {sitio.calle}, {sitio.fraccionamiento}, CP {sitio.cp}
+        </Text>
 
-      <Text style={styles.sectionTitle}>Valoraciones</Text>
+        <Text style={styles.sectionTitle}>Valoraciones</Text>
 
-      {loading && <ActivityIndicator size="large" />}
-      {error && <Text style={{ color: "red" }}>{error}</Text>}
+        <FlatList
+          data={opiniones}
+          keyExtractor={(v) => v.id.toString()}
+          renderItem={({ item }) => (
+            <View style={styles.reviewCard}>
+              <Text style={styles.reviewUser}>
+                {item.usuario?.nombre ?? "Anónimo"} ({item.puntuacion}⭐)
+              </Text>
+              <Text>{item.comentario}</Text>
+            </View>
+          )}
+          scrollEnabled={false}
+        />
 
-      <FlatList
-        data={opiniones}
-        keyExtractor={(v) => v.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.reviewCard}>
-            <Text style={styles.reviewUser}>
-              {item.usuario?.nombre ?? "Anónimo"} ({item.puntuacion}⭐)
-            </Text>
-            <Text>{item.comentario}</Text>
-          </View>
-        )}
-        scrollEnabled={false}
-      />
-    </ScrollView>
+        {/* Formulario para nueva opinión */}
+        <Text style={styles.sectionTitle}>Deja tu opinión</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Escribe tu comentario..."
+          multiline
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Puntuación (1-5)"
+          keyboardType="numeric"
+        />
+        <TouchableOpacity style={styles.button}>
+          <Text style={{ color: "#fff", fontWeight: "bold" }}>ENVIAR</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -80,6 +136,27 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 16, color: "#666", marginBottom: 8 },
   info: { fontSize: 14, marginTop: 2 },
   sectionTitle: { marginTop: 20, fontSize: 18, fontWeight: "bold" },
-  reviewCard: { marginTop: 12, padding: 12, backgroundColor: "#f5f5f5", borderRadius: 8 },
+  reviewCard: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 8,
+  },
   reviewUser: { fontWeight: "bold" },
+  form: { marginTop: 20 },
+  input: {
+  borderWidth: 1,
+  borderColor: "#ccc",
+  borderRadius: 8,
+  padding: 10,
+  marginTop: 10,
+  backgroundColor: "#fff",
+  },
+  button: {
+    marginTop: 12,
+    backgroundColor: "#007AFF",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
 });
