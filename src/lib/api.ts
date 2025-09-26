@@ -1,6 +1,6 @@
 
 
-export const BASE_URL = "http://192.168.1.6:5001/api"
+export const BASE_URL = "http://192.168.1.73:5001/api"
 
 export type Sitio = {
     id:number
@@ -53,3 +53,37 @@ export async function getCategorias() {
     color: c.color ?? null, 
   }));
 }
+
+export async function getOpinionesBySitio(sitioId: number) {
+  const url = `${BASE_URL}/opinion/sitio/${sitioId}`;
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Error al obtener opiniones: ${res.status} ${text}`);
+  }
+
+  return res.json();
+}
+
+//POST para las valora
+export async function createOpinion(token: string, sitioId: number, comentario: string, puntuacion: number) {
+  const url = `${BASE_URL}/opinion`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`, // JWT del usuario logueado
+    },
+    body: JSON.stringify({ sitioId, comentario, puntuacion }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Error al crear opinión: ${res.status} ${text}`);
+  }
+
+  return res.json();
+}
+
