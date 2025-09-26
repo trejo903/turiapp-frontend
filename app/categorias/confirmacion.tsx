@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 export default function ConfirmacionReservaScreen() {
   return (
@@ -7,7 +7,7 @@ export default function ConfirmacionReservaScreen() {
       <Text style={styles.title}>Reserva Confirmada</Text>
 
       <View style={styles.card}>
-        <Text style={styles.detail}>Lugar: Museo X</Text>
+        <Text style={styles.detail}>Lugar: Restaurante X</Text>
         <Text style={styles.detail}>Fecha: 15 Oct 2025</Text>
         <Text style={styles.detail}>Hora: 12:00</Text>
         <Text style={styles.detail}>Personas: 2</Text>
@@ -16,10 +16,6 @@ export default function ConfirmacionReservaScreen() {
       <View style={styles.qrPlaceholder}>
         <Text>QR CODE</Text>
       </View>
-
-      <TouchableOpacity style={styles.button}>
-        <Text style={styles.buttonText}>Añadir al Calendario</Text>
-      </TouchableOpacity>
     </View>
   );
 }

@@ -1,9 +1,8 @@
-import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, Pressable, ActivityIndicator, ScrollView, RefreshControl } from "react-native";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { BASE_URL } from "@/src/lib/api";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import MisCompras from "./opciones/miscompras";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 
 type Usuario = {
   id: string;
@@ -255,6 +254,10 @@ export default function Perfil() {
 
         <Tile label="Favoritos" onPress={() => goFavoritos()}>
           <Ionicons name="heart" size={28} />
+        </Tile>
+
+        <Tile label="Idioma" onPress={() => router.push("/(tabs)/usuario/opciones/idioma")}>
+          <Ionicons name="language-outline" size={28} />
         </Tile>
       </View>
 

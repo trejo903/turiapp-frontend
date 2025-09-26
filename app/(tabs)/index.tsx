@@ -67,43 +67,6 @@ export default function Index() {
       <Stack.Screen options={{ title: "TuriApp" }} />
       <Text style={styles.subtitle}>Lugares por conocer</Text>
 
-      {/* 🔹 Bloque de botones de navegación rápida */}
-      <View style={styles.quickNav}>
-        <Text style={styles.sectionTitle}>Accesos rápidos</Text>
-        <View style={styles.quickNavRow}>
-          <Link href="/reserva" asChild>
-            <Pressable style={styles.quickButton}>
-              <Text style={styles.quickButtonText}>Reserva</Text>
-            </Pressable>
-          </Link>
-          <Link href="/confirmacion" asChild>
-            <Pressable style={styles.quickButton}>
-              <Text style={styles.quickButtonText}>Confirmación</Text>
-            </Pressable>
-          </Link>
-        </View>
-
-        <View style={styles.quickNavRow}>
-          <Link href="/idioma" asChild>
-            <Pressable style={styles.quickButton}>
-              <Text style={styles.quickButtonText}>Idioma</Text>
-            </Pressable>
-          </Link>
-          <Link href="/calculadora" asChild>
-            <Pressable style={styles.quickButton}>
-              <Text style={styles.quickButtonText}>Recorridos</Text>
-            </Pressable>
-          </Link>
-        </View>
-
-        <View style={styles.quickNavRow}>
-          <Link href="/recomendaciones" asChild>
-            <Pressable style={styles.quickButton}>
-              <Text style={styles.quickButtonText}>Recomendaciones</Text>
-            </Pressable>
-          </Link>
-        </View>
-      </View>
 
       {/* 🔹 Lista de categorías */}
       <FlatList

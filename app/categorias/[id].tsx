@@ -1,10 +1,27 @@
 // app/categorias/[id].tsx
-import { Text, View } from "react-native";
+import { Link } from "expo-router";
+import { Pressable, Text, View } from "react-native";
 
 export default function CategoriaScreen() {
   return (
     <View>
       <Text>Pantalla de categoría</Text>
+      <Link href={`/categorias/reserva`} asChild>
+        <Pressable style={styles.button}>
+          <Text>Ir a Reserva</Text>
+        </Pressable>
+      </Link>
+
+      <Link href={`/categorias/confirmacion`} asChild>
+        <Pressable style={styles.button}>
+          <Text style={styles.buttonText}>Ir a Confirmación</Text>
+        </Pressable>
+      </Link>
+
     </View>
   );
 }
+const styles = {
+  button: { backgroundColor: "#007AFF", padding: 15, borderRadius: 8, marginTop: 20 },
+  buttonText: { color: "#007AFF", textAlign: "center" },
+};

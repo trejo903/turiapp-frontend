@@ -1,11 +1,12 @@
 import { createOpinion, getOpinionesBySitio } from "@/src/lib/api";
-import { useLocalSearchParams } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   FlatList,
   Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,6 +24,7 @@ type Opinion = {
 
 export default function SitioScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { catId, nombre } = useLocalSearchParams<{ catId: string; nombre: string }>();
   const [opiniones, setOpiniones] = useState<Opinion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +95,15 @@ export default function SitioScreen() {
           {sitio.calle}, {sitio.fraccionamiento}, CP {sitio.cp}
         </Text>
 
+         {/* 🔹 Botón hacia Reserva */}
+      <Link href={`/categorias/reserva`} asChild>
+        <Pressable style={styles.button}>
+          <Text style={{ color: "#fff", fontWeight: "bold" }}>Ir a Reserva</Text>
+        </Pressable>
+      </Link>
+
+      {/* 🔹 Botón hacia Confirmación */}
+       
         <Text style={styles.sectionTitle}>Valoraciones</Text>
 
         <FlatList

@@ -1,4 +1,5 @@
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Link } from "expo-router";
+import { Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View, } from "react-native";
 
 export default function ReservaScreen() {
   return (
@@ -22,7 +23,11 @@ export default function ReservaScreen() {
       </View>
 
       <TouchableOpacity style={styles.button}>
-        <Text style={styles.buttonText}>CONFIRMAR RESERVA</Text>
+        <Link href={`/categorias/confirmacion`} asChild>
+          <Pressable style={styles.button}>
+            <Text style={styles.buttonText}>Ir a Confirmación</Text>
+          </Pressable>
+        </Link>
       </TouchableOpacity>
     </View>
   );
@@ -35,6 +40,17 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 10, marginTop: 5 },
   paymentOptions: { flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
   radio: { borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 8 },
-  button: { backgroundColor: "#211C1C", padding: 15, borderRadius: 8, marginTop: 20 },
-  buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
+  button: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 20,
+    width: "100%",
+  },
+  buttonText: {
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });
