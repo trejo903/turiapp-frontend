@@ -5,10 +5,9 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native";
 
 type Categoria = {
@@ -63,7 +62,7 @@ export default function Index() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, paddingTop: 20 }}>
+    <View  style={{ flex: 1, paddingTop: 20 }}>
       <Stack.Screen options={{ title: "TuriApp" }} />
       <Text style={styles.subtitle}>Lugares por conocer</Text>
 
@@ -108,7 +107,7 @@ export default function Index() {
         }}
         ListEmptyComponent={<Text>Sin datos</Text>}
       />
-    </ScrollView>
+    </View >
   );
 }
 
