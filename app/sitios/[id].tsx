@@ -1,7 +1,8 @@
-import { createOpinion, getOpinionesBySitio } from "@/src/lib/api";
+import { createOpinion, getOpinionesBySitio, getSitioById, Sitio } from "@/src/lib/api";
 import { Link, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -23,8 +24,11 @@ type Opinion = {
 };
 
 export default function SitioScreen() {
+  // 👇 Hook solo arriba (render directo, no dentro de useEffect)
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { catId, nombre } = useLocalSearchParams<{ catId: string; nombre: string }>();
+  const sitioId = Number(id); // lo fijamos en una variable
+
+  const [sitio, setSitio] = useState<Sitio | null>(null);
   const [opiniones, setOpiniones] = useState<Opinion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,42 +36,32 @@ export default function SitioScreen() {
   const [puntuacion, setPuntuacion] = useState(5);
   const [enviando, setEnviando] = useState(false);
 
-  //Token simulado (luego se reemplaza por el del login real)
   const token = "TOKEN_DE_PRUEBA";
 
-  // Datos del sitio (simulado)
-  const sitio = {
-    id,
-    nombre: "Parque Guadiana",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Parque_Guadiana.jpg/320px-Parque_Guadiana.jpg",
-    telefono: "618-123-4567",
-    estado: "Durango",
-    municipio: "Durango",
-    cp: "34000",
-    fraccionamiento: "Centro",
-    calle: "Av. 20 de Noviembre",
-  };
-
-  // Cargar opiniones
+  // 🔹 Cargar sitio y opiniones
   useEffect(() => {
+    if (!sitioId) return;
+
     (async () => {
       try {
-        const data = await getOpinionesBySitio(Number(id));
-        setOpiniones(data);
+        const dataSitio = await getSitioById(sitioId);
+        setSitio(dataSitio);
+
+        const dataOpiniones = await getOpinionesBySitio(sitioId);
+        setOpiniones(dataOpiniones);
       } catch (err: any) {
         setError(err.message);
       } finally {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [sitioId]);
 
-  // Enviar nueva opinión
   const handleEnviarOpinion = async () => {
     try {
       setEnviando(true);
-      const nueva = await createOpinion(token, Number(id), comentario, puntuacion);
-      setOpiniones((prev) => [nueva, ...prev]); // agrega la nueva opinión arriba
+      const nueva = await createOpinion(token, sitioId, comentario, puntuacion);
+      setOpiniones((prev) => [nueva, ...prev]);
       setComentario("");
       setPuntuacion(5);
     } catch (err: any) {
@@ -77,11 +71,14 @@ export default function SitioScreen() {
     }
   };
 
+  if (loading) return <ActivityIndicator size="large" style={{ flex: 1 }} />;
+  if (!sitio) return <Text>No se encontró el sitio</Text>;
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"} // iOS sube, Android ajusta altura
-      keyboardVerticalOffset={80} // ajusta según tu header
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={80}
     >
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
         <Image source={{ uri: sitio.img }} style={styles.image} />
@@ -95,15 +92,21 @@ export default function SitioScreen() {
           {sitio.calle}, {sitio.fraccionamiento}, CP {sitio.cp}
         </Text>
 
-         {/* 🔹 Botón hacia Reserva */}
-      <Link href={`/categorias/reserva`} asChild>
-        <Pressable style={styles.button}>
-          <Text style={{ color: "#fff", fontWeight: "bold" }}>Ir a Reserva</Text>
-        </Pressable>
-      </Link>
+        {/* 🔹 Botón hacia Reserva, solo si la categoría es reservable */}
+        {sitio.categoria?.reservable && (
+          <Link
+            href={{
+              pathname: "/categorias/reserva",
+              params: { sitioId: sitio.id },
+            }}
+            asChild
+          >
+            <Pressable style={styles.button}>
+              <Text style={{ color: "#fff", fontWeight: "bold" }}>Ir a Reserva</Text>
+            </Pressable>
+          </Link>
+        )}
 
-      {/* 🔹 Botón hacia Confirmación */}
-       
         <Text style={styles.sectionTitle}>Valoraciones</Text>
 
         <FlatList
@@ -120,20 +123,29 @@ export default function SitioScreen() {
           scrollEnabled={false}
         />
 
-        {/* Formulario para nueva opinión */}
         <Text style={styles.sectionTitle}>Deja tu opinión</Text>
         <TextInput
           style={styles.input}
           placeholder="Escribe tu comentario..."
+          value={comentario}
+          onChangeText={setComentario}
           multiline
         />
         <TextInput
           style={styles.input}
           placeholder="Puntuación (1-5)"
+          value={String(puntuacion)}
+          onChangeText={(val) => setPuntuacion(Number(val))}
           keyboardType="numeric"
         />
-        <TouchableOpacity style={styles.button}>
-          <Text style={{ color: "#fff", fontWeight: "bold" }}>ENVIAR</Text>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleEnviarOpinion}
+          disabled={enviando}
+        >
+          <Text style={{ color: "#fff", fontWeight: "bold" }}>
+            {enviando ? "Enviando..." : "ENVIAR"}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -154,14 +166,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   reviewUser: { fontWeight: "bold" },
-  form: { marginTop: 20 },
   input: {
-  borderWidth: 1,
-  borderColor: "#ccc",
-  borderRadius: 8,
-  padding: 10,
-  marginTop: 10,
-  backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+    backgroundColor: "#fff",
   },
   button: {
     marginTop: 12,

@@ -2,6 +2,8 @@
 
 export const BASE_URL = "http://192.168.1.73:5001/api"
 
+
+
 export type Sitio = {
     id:number
     nombre:string
@@ -15,6 +17,7 @@ export type Sitio = {
     latitude:number | string
     longitude:number | string
     categoriaId:number
+    categoria?: Categoria;
 }
 
 function normalizeSitioDecimals(s:Sitio):Sitio{
@@ -23,6 +26,19 @@ function normalizeSitioDecimals(s:Sitio):Sitio{
         latitude: typeof s.latitude === "string" ? Number(s.latitude) : s.latitude,
         longitude: typeof s.longitude === "string" ? Number(s.longitude) : s.longitude
     }
+}
+
+export async function getSitioById(id: number): Promise<Sitio> {
+  const url = `${BASE_URL}/sitios/${id}`;
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Get ${url} ${res.status} ${text}`);
+  }
+
+  const data: Sitio = await res.json();
+  return normalizeSitioDecimals(data);
 }
 
 
