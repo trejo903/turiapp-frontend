@@ -1,6 +1,6 @@
 
 
-export const BASE_URL = "http://192.168.1.73:5001/api"
+export const BASE_URL = "http://192.168.1.12:5001/api"
 
 
 
@@ -17,7 +17,7 @@ export type Sitio = {
     latitude:number | string
     longitude:number | string
     categoriaId:number
-    categoria?: Categoria;
+    categoria?: any;
 }
 
 function normalizeSitioDecimals(s:Sitio):Sitio{
