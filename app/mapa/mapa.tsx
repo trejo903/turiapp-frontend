@@ -1,12 +1,14 @@
 // app/mapa/mapa.tsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSitiosByCategoria, Sitio } from "@/src/lib/api";
+import { ANARANJADOS_CIMA_KML, KMLRoute, parseKML } from '@/src/lib/kmlParser';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import * as Location from "expo-location";
 import { Link, Stack, useLocalSearchParams } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   ActionSheetIOS,
+  Alert,
   Image,
   Linking,
   Platform,
@@ -15,9 +17,8 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
-import * as Location from "expo-location";
 import CLEAN_STYLE from '../../assets/map-style-clean.json';
 
 // ===== Helpers anti-flicker =====
@@ -42,7 +43,7 @@ const SiteMarker = React.memo(function SiteMarker({
 }) {
   const [tracks, setTracks] = useState(true);
   useEffect(() => {
-    const t = setTimeout(() => setTracks(false), 300); // tras primer render se apaga
+    const t = setTimeout(() => setTracks(false), 300);
     return () => clearTimeout(t);
   }, []);
 
@@ -59,6 +60,34 @@ const SiteMarker = React.memo(function SiteMarker({
   );
 });
 
+// Marker para el camión en la ruta
+const TruckMarker = React.memo(function TruckMarker({
+  coordinate,
+  onPress,
+}: {
+  coordinate: { latitude: number; longitude: number };
+  onPress: () => void;
+}) {
+  const [tracks, setTracks] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setTracks(false), 300);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <Marker
+      coordinate={coordinate}
+      title="Ruta Anaranjados CIMA"
+      description="Camión en ruta"
+      anchor={{ x: 0.5, y: 0.5 }}
+      onPress={onPress}
+      tracksViewChanges={tracks}
+    >
+      <MaterialCommunityIcons name="truck" size={32} color="#F9A825" />
+    </Marker>
+  );
+});
+
 type TravelMode = 'DRIVING' | 'WALKING';
 
 export default function Mapa() {
@@ -71,12 +100,18 @@ export default function Mapa() {
   // Ubicación del usuario
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
+  // Ruta KML y estado del camión
+  const [kmlRoute, setKmlRoute] = useState<KMLRoute | null>(null);
+  const [truckPosition, setTruckPosition] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [showRoute, setShowRoute] = useState(true);
+
   // Modo de viaje para la ruta interna
   const [travelMode, setTravelMode] = useState<TravelMode>('DRIVING');
 
   const mapRef = useRef<MapView>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
+  const truckAnimationRef = useRef<NodeJS.Timeout | null>(null);
 
   const snapPoints = useMemo(() => ['40%', '75%', '90%'], []);
   const initialRegion = useMemo(() => ({
@@ -85,6 +120,54 @@ export default function Mapa() {
     latitudeDelta: 0.05,
     longitudeDelta: 0.05
   }), []);
+
+  // Cargar ruta KML al montar el componente
+  useEffect(() => {
+    const route = parseKML(ANARANJADOS_CIMA_KML);
+    setKmlRoute(route);
+    
+    // Posicionar camión en el primer punto de la ruta
+    if (route && route.coordinates.length > 0) {
+      const firstCoord = route.coordinates[0];
+      setTruckPosition({ latitude: firstCoord.latitude, longitude: firstCoord.longitude });
+    }
+  }, []);
+
+  // Animación del camión a lo largo de la ruta
+  useEffect(() => {
+    if (!kmlRoute || !showRoute) return;
+
+    let currentIndex = 0;
+    const coordinates = kmlRoute.coordinates;
+
+    const animateTruck = () => {
+      if (currentIndex < coordinates.length - 1) {
+        currentIndex++;
+        setTruckPosition({
+          latitude: coordinates[currentIndex].latitude,
+          longitude: coordinates[currentIndex].longitude
+        });
+        
+        truckAnimationRef.current = setTimeout(animateTruck, 2000); // Mover cada 2 segundos
+      } else {
+        // Reiniciar animación cuando llega al final
+        currentIndex = 0;
+        setTruckPosition({
+          latitude: coordinates[0].latitude,
+          longitude: coordinates[0].longitude
+        });
+        truckAnimationRef.current = setTimeout(animateTruck, 2000);
+      }
+    };
+
+    truckAnimationRef.current = setTimeout(animateTruck, 2000);
+
+    return () => {
+      if (truckAnimationRef.current) {
+        clearTimeout(truckAnimationRef.current);
+      }
+    };
+  }, [kmlRoute, showRoute]);
 
   // Permisos + ubicación actual + watcher
   useEffect(() => {
@@ -102,7 +185,19 @@ export default function Mapa() {
       const cur = { latitude: current.coords.latitude, longitude: current.coords.longitude };
       setUserLocation(cur);
 
-      mapRef.current?.animateToRegion({ ...cur, latitudeDelta: 0.03, longitudeDelta: 0.03 }, 600);
+      // Ajustar región para incluir ruta KML si existe
+      if (kmlRoute && kmlRoute.coordinates.length > 0) {
+        const allCoords = [
+          ...kmlRoute.coordinates.map(c => ({ latitude: c.latitude, longitude: c.longitude })),
+          cur
+        ];
+        mapRef.current?.fitToCoordinates(allCoords, {
+          edgePadding: { top: 80, right: 40, bottom: 40, left: 40 },
+          animated: true
+        });
+      } else {
+        mapRef.current?.animateToRegion({ ...cur, latitudeDelta: 0.03, longitudeDelta: 0.03 }, 600);
+      }
 
       locationSubRef.current = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.Balanced, timeInterval: 4000, distanceInterval: 5 },
@@ -117,10 +212,13 @@ export default function Mapa() {
       mounted = false;
       locationSubRef.current?.remove();
       locationSubRef.current = null;
+      if (truckAnimationRef.current) {
+        clearTimeout(truckAnimationRef.current);
+      }
     };
-  }, []);
+  }, [kmlRoute]);
 
-  // Cargar sitios por categoría (una sola vez por categoría)
+  // Cargar sitios por categoría
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -133,7 +231,16 @@ export default function Mapa() {
         if (data.length > 0 && mapRef.current) {
           const coords = data.map(s => ({ latitude: s.latitude as number, longitude: s.longitude as number }));
           if (userLocation) coords.push(userLocation);
-          mapRef.current.fitToCoordinates(coords, { edgePadding: { top: 80, right: 40, bottom: 40, left: 40 }, animated: true });
+          
+          // Incluir coordenadas de la ruta KML si existe
+          if (kmlRoute) {
+            coords.push(...kmlRoute.coordinates.map(c => ({ latitude: c.latitude, longitude: c.longitude })));
+          }
+          
+          mapRef.current.fitToCoordinates(coords, { 
+            edgePadding: { top: 80, right: 40, bottom: 40, left: 40 }, 
+            animated: true 
+          });
         }
       } catch {
         console.log("Error al mostrar los sitios");
@@ -142,20 +249,39 @@ export default function Mapa() {
       }
     })();
     return () => { mounted = false };
-  }, [categoriaId]); // no dependas de userLocation para evitar re-fit continuo
+  }, [categoriaId, kmlRoute]);
 
-  // handler de marker estable (no cambia identidad entre renders)
   const handleMarkerPress = useCallback((sitio: Sitio) => {
     setSelectedSitio(sitio);
     bottomSheetRef.current?.expand();
   }, []);
+
+  const handleTruckPress = useCallback(() => {
+    Alert.alert(
+      "Ruta Anaranjados CIMA",
+      "Ruta de camión en servicio. Toca para centrar en la ruta.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Centrar en ruta", 
+          onPress: () => {
+            if (kmlRoute && mapRef.current) {
+              mapRef.current.fitToCoordinates(
+                kmlRoute.coordinates.map(c => ({ latitude: c.latitude, longitude: c.longitude })),
+                { edgePadding: { top: 80, right: 40, bottom: 40, left: 40 }, animated: true }
+              );
+            }
+          }
+        }
+      ]
+    );
+  }, [kmlRoute]);
 
   const handleCallPress = (telefono: string) => {
     const phoneNumber = `tel:${telefono.replace(/\s/g, '')}`;
     Linking.openURL(phoneNumber);
   };
 
-  // Normaliza la URL de imagen
   const formatImageUrl = (imgPath?: string | null) => {
     if (!imgPath) return null;
     if (imgPath.startsWith('http://') || imgPath.startsWith('https://')) return imgPath;
@@ -167,7 +293,11 @@ export default function Mapa() {
     mapRef.current.animateToRegion({ ...userLocation, latitudeDelta: 0.02, longitudeDelta: 0.02 }, 600);
   };
 
-  // ======= DIRECCIONES EXTERNAS (fallback) =======
+  const toggleRoute = () => {
+    setShowRoute(!showRoute);
+  };
+
+  // ======= DIRECCIONES EXTERNAS =======
   const openDirectionsExternal = async (destLat: number, destLng: number, mode: 'driving' | 'walking' = 'driving') => {
     const origin = userLocation ? `${userLocation.latitude},${userLocation.longitude}` : null;
     const googleApp = `comgooglemaps://?${origin ? `saddr=${origin}&` : ''}daddr=${destLat},${destLng}&directionsmode=${mode}`;
@@ -205,7 +335,6 @@ export default function Mapa() {
     }
   };
 
-  // Ajusta cámara a la polilínea
   const onDirectionsReady = (result: { coordinates: { latitude: number; longitude: number }[] }) => {
     if (!mapRef.current) return;
     if (result?.coordinates?.length) {
@@ -234,13 +363,28 @@ export default function Mapa() {
           <SiteMarker key={s.id} sitio={s} onPress={handleMarkerPress} />
         ))}
 
+        {/* Ruta KML */}
+        {showRoute && kmlRoute && (
+          <Polyline
+            coordinates={kmlRoute.coordinates}
+            strokeColor="#F9A825"
+            strokeWidth={4}
+            lineDashPattern={[1, 0]} // Línea sólida
+          />
+        )}
+
+        {/* Marcador del camión */}
+        {showRoute && truckPosition && (
+          <TruckMarker coordinate={truckPosition} onPress={handleTruckPress} />
+        )}
+
         {userLocation && (
           <Marker coordinate={userLocation} title="Tú estás aquí" tracksViewChanges>
             <MaterialCommunityIcons name="crosshairs-gps" size={30} />
           </Marker>
         )}
 
-        {/* Ruta interna */}
+        {/* Ruta interna a sitios seleccionados */}
         {userLocation && selectedSitio && (
           <MapViewDirections
             origin={userLocation}
@@ -255,9 +399,17 @@ export default function Mapa() {
         )}
       </MapView>
 
-      {/* FAB */}
+      {/* FABs */}
       <TouchableOpacity style={styles.fab} onPress={recenterOnUser}>
         <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#fff" />
+      </TouchableOpacity>
+
+      <TouchableOpacity style={[styles.fab, styles.fabRoute]} onPress={toggleRoute}>
+        <MaterialCommunityIcons 
+          name={showRoute ? "eye-off" : "eye"} 
+          size={22} 
+          color="#fff" 
+        />
       </TouchableOpacity>
 
       {/* BottomSheet */}
@@ -352,6 +504,12 @@ export default function Mapa() {
             <View style={styles.placeholder}>
               <MaterialCommunityIcons name="map-marker-question" size={48} color="#ccc" />
               <Text style={styles.placeholderText}>Selecciona un marcador para ver la información y la ruta</Text>
+              {kmlRoute && (
+                <View style={styles.routeInfo}>
+                  <MaterialCommunityIcons name="truck" size={24} color="#F9A825" />
+                  <Text style={styles.routeInfoText}>Ruta activa: {kmlRoute.name}</Text>
+                </View>
+              )}
             </View>
           )}
         </BottomSheetView>
@@ -372,6 +530,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 12,
     elevation: 4
+  },
+
+  fabRoute: {
+    bottom: 180,
+    backgroundColor: '#F9A825',
   },
 
   bottomSheetBackground: { backgroundColor: '#ffffff', borderRadius: 20 },
@@ -405,6 +568,21 @@ const styles = StyleSheet.create({
 
   placeholder: { alignItems: 'center', justifyContent: 'center', padding: 20, gap: 16 },
   placeholderText: { fontSize: 16, color: '#666', textAlign: 'center', lineHeight: 22 },
+
+  routeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    backgroundColor: '#FFF3E0',
+    borderRadius: 8,
+    marginTop: 8
+  },
+  routeInfoText: {
+    fontSize: 14,
+    color: '#E65100',
+    fontWeight: '500'
+  },
 
   actionsRowWrap: { gap: 10 },
   modeRow: { flexDirection: 'row', gap: 10 },
