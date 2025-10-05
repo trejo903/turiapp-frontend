@@ -99,36 +99,75 @@ export async function getCategorias() {
   }));
 }
 
-export async function getOpinionesBySitio(sitioId: number) {
+
+
+
+// src/lib/api.ts
+export type OpinionApi = {
+  id: number;
+  comentario: string;
+  puntuacion: number; // 1..5
+  fecha: string;
+  usuario: { id: number; nombre?: string | null; apellido?: string | null; correo: string };
+  sitio: { id: number };
+};
+
+export async function getOpinionesBySitio(sitioId: number): Promise<OpinionApi[]> {
   const url = `${BASE_URL}/opinion/sitio/${sitioId}`;
   const res = await fetch(url);
-
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Error al obtener opiniones: ${res.status} ${text}`);
   }
-
   return res.json();
 }
 
-//POST para las valora
-export async function createOpinion(token: string, sitioId: number, comentario: string, puntuacion: number) {
-  const url = `${BASE_URL}/opinion`;
-
-  const res = await fetch(url, {
+export async function createOpinion(
+  token: string,
+  sitioId: number,
+  comentario: string,
+  puntuacion: number
+): Promise<OpinionApi> {
+  const res = await fetch(`${BASE_URL}/opinion`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`, // JWT del usuario logueado
+      Authorization: `Bearer ${token}`,   // 👈 token real
     },
     body: JSON.stringify({ sitioId, comentario, puntuacion }),
   });
-
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Error al crear opinión: ${res.status} ${text}`);
   }
-
   return res.json();
 }
 
+
+export async function createOpinionNoAuth(
+  sitioId: number,
+  comentario: string,
+  puntuacion: number,
+  usuarioId: number
+) {
+  const res = await fetch(`${BASE_URL}/opinion`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sitioId, comentario, puntuacion, usuarioId }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Error al crear opinión: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+
+
+export async function getOpinionesDeUsuario(userId: number): Promise<OpinionApi[]> {
+  return apiFetch(`/opinion/usuario/${userId}`);
+}
+
+export async function getMisOpiniones(token: string): Promise<OpinionApi[]> {
+  return apiFetch(`/opinion/mias`, {}, token);
+}
