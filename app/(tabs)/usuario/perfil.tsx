@@ -1,6 +1,8 @@
+import { useAuthGuard } from "@/src/hooks/useAuthGuard";
+import { useAuth } from "@/src/state/auth";
 import { BASE_URL } from "@/src/lib/api";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 
@@ -13,17 +15,18 @@ type Usuario = {
 };
 
 export default function Perfil() {
-  const { userId, email } = useLocalSearchParams<{ userId?: string; email?: string }>();
+  useAuthGuard(); // 🔒 redirige a /login si no hay token válido
   const router = useRouter();
+  const { user, token, logout } = useAuth(); // ← lee sesión desde Zustand
 
   const [profile, setProfile] = useState<Usuario | null>(
-    userId || email
-      ? { id: String(userId ?? ""), correo: String(email ?? ""), nombre: "", apellido: "", validado: null }
+    user
+      ? { id: String(user.id), correo: user.correo, nombre: user.nombre ?? "", apellido: user.apellido ?? "", validado: null }
       : null
   );
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [statusText, setStatusText] = useState<string | null>(null); // pequeño chip en vez de Alert
+  const [statusText, setStatusText] = useState<string | null>(null);
 
   const initials = useMemo(() => {
     const n = (profile?.nombre ?? "").trim();
@@ -39,66 +42,46 @@ export default function Perfil() {
     return (n || a) ? `${n} ${a}`.trim() : "Sin nombre";
   }, [profile]);
 
-  // No lanza error: devuelve JSON o null
-  async function safeJsonOrNull(res: Response) {
-    const ct = res.headers.get("content-type") || "";
-    if (!ct.includes("application/json")) return null;
-    try {
-      return await res.json();
-    } catch {
-      return null;
-    }
-  }
-
   const fetchProfile = useCallback(async () => {
-    const uid = String(userId ?? profile?.id ?? "").trim();
-    if (!uid) return;
+    if (!token || !user?.id) return;
 
     try {
       setLoading(true);
       setStatusText(null);
 
-      const res = await fetch(`${BASE_URL}/usuarios/${uid}`, {
+      const res = await fetch(`${BASE_URL}/usuarios/${user.id}`, {
         method: "GET",
-        headers: { Accept: "application/json" },
-        credentials: "include", // por si usas cookies; si no, no afecta el UI
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`, // ← usa JWT
+        },
+        credentials: "include",
       });
 
       if (!res.ok) {
-        // No alert: sólo mostramos un chip suave
         setStatusText(`No se pudo actualizar el perfil (HTTP ${res.status})`);
         return;
       }
 
-      const data = await safeJsonOrNull(res);
-      if (!data) {
-        // El backend devolvió texto/HTML (ej. “This action returns a #1 usuario”)
-        setStatusText("Mostrando datos locales");
-        return; // dejamos el perfil como estaba (id/correo de la ruta)
-      }
+      const ct = res.headers.get("content-type") || "";
+      const data = ct.includes("application/json") ? await res.json().catch(() => null) : null;
+      if (!data) { setStatusText("Mostrando datos locales"); return; }
 
-      setProfile((prev) => ({
-        id: data?.id ?? prev?.id ?? uid,
-        correo: data?.correo ?? prev?.correo ?? String(email ?? ""),
-        nombre: data?.nombre ?? "",
-        apellido: data?.apellido ?? "",
-        validado: data?.validado ?? null,
-      }));
-    } catch (e) {
-      // Nada de Alert: sólo chip
+      setProfile({
+        id: String(data.id),
+        correo: data.correo,
+        nombre: data.nombre ?? "",
+        apellido: data.apellido ?? "",
+        validado: data.validado ?? null,
+      });
+    } catch {
       setStatusText("Sin conexión");
     } finally {
       setLoading(false);
     }
-  }, [userId, email, profile?.id]);
+  }, [token, user?.id]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (userId && (!profile?.nombre || !profile?.apellido)) {
-        fetchProfile();
-      }
-    }, [userId, profile?.nombre, profile?.apellido, fetchProfile])
-  );
+  useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -107,54 +90,20 @@ export default function Perfil() {
   }, [fetchProfile]);
 
   const handleEditProfile = () => {
-    if (!profile?.id) {
-      // Nada intrusivo
-      setStatusText("Inicia sesión de nuevo para editar");
-      return;
-    }
+    if (!profile?.id) { setStatusText("Inicia sesión de nuevo para editar"); return; }
     router.push({ pathname: "/(tabs)/usuario/opciones/editarperfil", params: { userId: profile.id } });
   };
 
   const handleChangePassword = () => {
-    if (!profile?.correo) {
-      setStatusText("Inicia sesión de nuevo para cambiar contraseña");
-      return;
-    }
+    if (!profile?.correo) { setStatusText("Inicia sesión de nuevo para cambiar contraseña"); return; }
     router.push({ pathname: "/(tabs)/usuario/opciones/cambiarpassword", params: { email: profile.correo } });
   };
 
   const handleLogout = async () => {
-    try {
-      await fetch(`${BASE_URL}/usuarios/logout`, {
-        method: "POST",
-        credentials: "include",
-      }).catch(() => {});
-    } finally {
-      router.replace("/(tabs)/usuario/login");
-    }
+    try { await fetch(`${BASE_URL}/usuarios/logout`, { method: "POST", credentials: "include" }); } catch {}
+    logout(); // ← limpia el store persistido
+    router.replace("/(tabs)/usuario/login");
   };
-
-  const goLugares = () => router.push({ pathname: "/(tabs)/usuario/opciones/mislugares", params: { userId: profile?.id } });
-  const goComentarios = () => router.push({ pathname: "/(tabs)/usuario/opciones/miscomentarios", params: { userId: profile?.id } });
-  const goCompras = () => router.push({ pathname: "/(tabs)/usuario/opciones/miscompras", params: { userId: profile?.id } });
-  const goFavoritos = () => router.push({ pathname: "/(tabs)/usuario/opciones/favoritos", params: { userId: profile?.id } });
-
-  if (!email && !userId) {
-    return (
-      <View style={{ flex: 1, padding: 16, gap: 12, backgroundColor: "#fff", justifyContent: "center", alignItems: "center" }}>
-        <Text style={{ fontSize: 22, fontWeight: "700" }}>Mi perfil</Text>
-        <Text style={{ color: "#6b7280", textAlign: "center" }}>
-          No hay sesión activa. Inicia sesión para ver tu perfil.
-        </Text>
-        <Pressable
-          onPress={() => router.replace("/(tabs)/usuario/login")}
-          style={{ marginTop: 16, backgroundColor: "#111827", paddingVertical: 12, paddingHorizontal: 18, borderRadius: 10 }}
-        >
-          <Text style={{ color: "#fff", fontWeight: "600" }}>Ir a iniciar sesión</Text>
-        </Pressable>
-      </View>
-    );
-  }
 
   return (
     <ScrollView
@@ -164,18 +113,8 @@ export default function Perfil() {
     >
       <Text style={{ fontSize: 22, fontWeight: "700", marginBottom: 12 }}>Mi perfil</Text>
 
-      {/* Cabecera */}
       <View style={{ backgroundColor: "#F3F4F6", borderRadius: 16, padding: 16, flexDirection: "row", alignItems: "center", gap: 14 }}>
-        <View
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: 9999,
-            backgroundColor: "#111827",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
+        <View style={{ width: 64, height: 64, borderRadius: 9999, backgroundColor: "#111827", alignItems: "center", justifyContent: "center" }}>
           <Text style={{ color: "#fff", fontSize: 22, fontWeight: "800" }}>{initials}</Text>
         </View>
 
@@ -183,36 +122,18 @@ export default function Perfil() {
           <Text style={{ fontSize: 18, fontWeight: "700" }}>{fullName}</Text>
           {!!profile?.correo && <Text style={{ color: "#6b7280" }}>{profile.correo}</Text>}
 
-          {/* Chip de validación si el backend lo trae */}
           {!!(profile?.validado !== null) && (
-            <View
-              style={{
-                alignSelf: "flex-start",
-                marginTop: 6,
-                backgroundColor: profile?.validado ? "#D1FAE5" : "#FEE2E2",
-                paddingVertical: 4,
-                paddingHorizontal: 10,
-                borderRadius: 9999,
-              }}
-            >
+            <View style={{ alignSelf: "flex-start", marginTop: 6, backgroundColor: profile?.validado ? "#D1FAE5" : "#FEE2E2",
+                           paddingVertical: 4, paddingHorizontal: 10, borderRadius: 9999 }}>
               <Text style={{ fontSize: 12, fontWeight: "700", color: profile?.validado ? "#065F46" : "#991B1B" }}>
                 {profile?.validado ? "Cuenta validada" : "Cuenta no validada"}
               </Text>
             </View>
           )}
 
-          {/* Chip de estado suave (sin Alert) */}
           {!!statusText && (
-            <View
-              style={{
-                alignSelf: "flex-start",
-                marginTop: 6,
-                backgroundColor: "#FEF3C7",
-                paddingVertical: 4,
-                paddingHorizontal: 10,
-                borderRadius: 9999,
-              }}
-            >
+            <View style={{ alignSelf: "flex-start", marginTop: 6, backgroundColor: "#FEF3C7",
+                           paddingVertical: 4, paddingHorizontal: 10, borderRadius: 9999 }}>
               <Text style={{ fontSize: 12, fontWeight: "700", color: "#92400E" }}>{statusText}</Text>
             </View>
           )}
@@ -221,93 +142,48 @@ export default function Perfil() {
         {loading && <ActivityIndicator />}
       </View>
 
-      {/* Acciones rápidas */}
       <View style={{ marginTop: 18, gap: 10 }}>
-        <Pressable
-          onPress={handleEditProfile}
-          style={{ backgroundColor: "#111827", borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14 }}
-        >
+        <Pressable onPress={handleEditProfile} style={{ backgroundColor: "#111827", borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14 }}>
           <Text style={{ color: "#fff", fontWeight: "700", textAlign: "center" }}>Editar perfil</Text>
         </Pressable>
 
-        <Pressable
-          onPress={handleChangePassword}
-          style={{ backgroundColor: "#374151", borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14 }}
-        >
+        <Pressable onPress={handleChangePassword} style={{ backgroundColor: "#374151", borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14 }}>
           <Text style={{ color: "#fff", fontWeight: "700", textAlign: "center" }}>Cambiar contraseña</Text>
         </Pressable>
       </View>
 
-      {/* Grid de accesos */}
       <View style={{ marginTop: 20, flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-        <Tile label="Mis Lugares" onPress={() => goLugares()}>
+        <Tile label="Mis Lugares" onPress={() => router.push({ pathname: "/(tabs)/usuario/opciones/mislugares", params: { userId: profile?.id } })}>
           <Ionicons name="location-sharp" size={28} />
         </Tile>
-
-        <Tile label="Mis Comentarios" onPress={() => goComentarios()}>
+        <Tile label="Mis Comentarios" onPress={() => router.push({ pathname: "/(tabs)/usuario/opciones/miscomentarios", params: { userId: profile?.id } })}>
           <Ionicons name="chatbubbles" size={28} />
         </Tile>
-
-        <Tile label="Mis Compras" onPress={() => goCompras()}>
+        <Tile label="Mis Compras" onPress={() => router.push({ pathname: "/(tabs)/usuario/opciones/miscompras", params: { userId: profile?.id } })}>
           <MaterialIcons name="shopping-bag" size={28} />
         </Tile>
-
-        <Tile label="Favoritos" onPress={() => goFavoritos()}>
+        <Tile label="Favoritos" onPress={() => router.push({ pathname: "/(tabs)/usuario/opciones/favoritos", params: { userId: profile?.id } })}>
           <Ionicons name="heart" size={28} />
         </Tile>
-
         <Tile label="Idioma" onPress={() => router.push("/(tabs)/usuario/opciones/idioma")}>
           <Ionicons name="language-outline" size={28} />
         </Tile>
       </View>
 
-      <Pressable
-        onPress={handleLogout}
-        style={{ marginTop: 24, backgroundColor: "#EF4444", borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14 }}
-      >
+      <Pressable onPress={handleLogout} style={{ marginTop: 24, backgroundColor: "#EF4444", borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14 }}>
         <Text style={{ color: "#fff", fontWeight: "700", textAlign: "center" }}>Cerrar sesión</Text>
       </Pressable>
     </ScrollView>
   );
 }
 
-function Tile({
-  children,
-  label,
-  onPress,
-}: {
-  children: React.ReactNode;
-  label: string;
-  onPress: () => void;
-}) {
+function Tile({ children, label, onPress }: { children: React.ReactNode; label: string; onPress: () => void; }) {
   return (
-    <Pressable
-      onPress={onPress}
-      android_ripple={{ color: "#e5e7eb" }}
-      style={{
-        width: "48%",
-        backgroundColor: "#F9FAFB",
-        borderRadius: 16,
-        paddingVertical: 18,
-        paddingHorizontal: 16,
-        shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 2,
-      }}
-    >
+    <Pressable onPress={onPress} android_ripple={{ color: "#e5e7eb" }}
+      style={{ width: "48%", backgroundColor: "#F9FAFB", borderRadius: 16, paddingVertical: 18, paddingHorizontal: 16,
+               shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 }}>
       <View style={{ alignItems: "center", gap: 8 }}>
-        <View
-          style={{
-            width: 52,
-            height: 52,
-            borderRadius: 9999,
-            backgroundColor: "#E5E7EB",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
+        <View style={{ width: 52, height: 52, borderRadius: 9999, backgroundColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }}>
           {children}
         </View>
         <Text style={{ fontWeight: "700", color: "#111827", textAlign: "center" }}>{label}</Text>

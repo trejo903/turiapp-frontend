@@ -15,6 +15,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { BASE_URL } from "@/src/lib/api";
+import { useAuth } from "@/src/state/auth";
 
 const schema = z.object({
   password: z.string().min(8, "Mínimo 8 caracteres").max(72, "Máximo 72"),
@@ -22,10 +23,13 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function NextLogin() {
+
+
   const router = useRouter();
   const { email } = useLocalSearchParams<{ email?: string; userId?: string }>();
   const [show, setShow] = useState(false);
-
+  const auth = useAuth(); // acceder a login()
+  
   const {
     control,
     handleSubmit,
@@ -45,8 +49,7 @@ export default function NextLogin() {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        // Si tu backend usa cookies httpOnly para sesión:
-        credentials: "include",
+        //credentials: "include", // por si usas cookie httpOnly
         body: JSON.stringify({ correo: email, password }),
       });
 
@@ -63,15 +66,21 @@ export default function NextLogin() {
         throw new Error(text || `Error ${res.status}`);
       }
 
-      // esperado opcionalmente: { user: { id, correo, ... } }
-      const body: any = await res.json().catch(() => ({}));
+      // Esperado: { user: { ... }, accessToken: "..." }
+      const body: any = await res.json();
+      if (!body?.accessToken || !body?.user?.id) {
+        throw new Error("Respuesta inválida del servidor");
+      }
 
-      const uid = String(body?.user?.id ?? "");
-      const uemail = String(body?.user?.correo ?? email ?? "");
+      // ✅ Guarda sesión en Zustand
+      auth.login({ user: body.user, token: body.accessToken });
 
       router.replace({
         pathname: "/(tabs)/usuario/perfil",
-        params: { userId: uid, email: uemail },
+        params: {
+          userId: String(body.user.id),
+          email: String(body.user.correo ?? email ?? ""),
+        },
       });
     } catch (e: any) {
       Alert.alert("No pudimos iniciar sesión", e?.message ?? "Intenta de nuevo");
@@ -90,7 +99,7 @@ export default function NextLogin() {
           render={({ field: { onChange, onBlur, value } }) => (
             <View style={{ width: "100%" }}>
               <Text style={styles.label}>Contraseña</Text>
-              <View style={styles.row}>
+              <View className="row" style={styles.row}>
                 <TextInput
                   style={[styles.input, errors.password && styles.inputError, { flex: 1 }]}
                   placeholder="********"

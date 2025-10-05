@@ -1,58 +1,70 @@
 // app/(tabs)/usuario/opciones/cambiarpassword.tsx
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Alert,
+  View, Text, TextInput, Pressable, StyleSheet,
+  KeyboardAvoidingView, Platform, ScrollView, Alert
 } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAuth } from "@/src/state/auth";
+import { BASE_URL } from "@/src/lib/api";
 
-const schema = z
-  .object({
-    currentPassword: z.string().min(8, "Mínimo 8 caracteres").max(72, "Máximo 72"),
-    newPassword: z.string().min(8, "Mínimo 8 caracteres").max(72, "Máximo 72"),
-    confirmPassword: z.string().min(8, "Mínimo 8 caracteres").max(72, "Máximo 72"),
-  })
-  .refine((vals) => vals.newPassword === vals.confirmPassword, {
-    message: "Las contraseñas no coinciden",
-    path: ["confirmPassword"],
-  });
+const schema = z.object({
+  currentPassword: z.string().min(8, "Mínimo 8 caracteres").max(72, "Máximo 72"),
+  newPassword: z.string().min(8, "Mínimo 8 caracteres").max(72, "Máximo 72"),
+  confirmPassword: z.string().min(8, "Mínimo 8 caracteres").max(72, "Máximo 72"),
+}).refine(v => v.newPassword === v.confirmPassword, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirmPassword"],
+});
 
 type FormValues = z.infer<typeof schema>;
 
 export default function CambiarPassword() {
+  const auth = useAuth(); // <- de aquí sacas user.id y token
   const {
-    control,
-    handleSubmit,
-    formState: { errors, isValid, isSubmitting },
-    reset,
+    control, handleSubmit, formState: { errors, isValid, isSubmitting }, reset,
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     mode: "onChange",
-    defaultValues: {
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    },
+    defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
   });
 
-  // toggles de visibilidad
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const onSubmit = async (values: FormValues) => {
-    // Por ahora sólo demostrativo
-    Alert.alert("Formulario válido", "Aquí harías la petición al backend.");
-    reset();
+  const onSubmit = async ({ currentPassword, newPassword }: FormValues) => {
+    if (!auth.user?.id) {
+      Alert.alert("Sesión", "Vuelve a iniciar sesión.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${BASE_URL}/usuarios/${auth.user.id}/password-change`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          // Usa el token que guardaste en Zustand:
+          ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}),
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        if (res.status === 401) throw new Error("La contraseña actual es incorrecta");
+        if (res.status === 400) throw new Error("La nueva contraseña no puede ser igual a la actual");
+        if (res.status === 409) throw new Error("Conflicto al cambiar la contraseña");
+        throw new Error(text || `Error ${res.status}`);
+      }
+
+      Alert.alert("Listo", "Tu contraseña fue actualizada.");
+      reset();
+    } catch (e: any) {
+      Alert.alert("No se pudo cambiar", e?.message ?? "Intenta de nuevo");
+    }
   };
 
   return (
@@ -82,13 +94,11 @@ export default function CambiarPassword() {
                   onBlur={onBlur}
                   returnKeyType="next"
                 />
-                <Pressable onPress={() => setShowCurrent((s) => !s)} style={styles.toggle}>
+                <Pressable onPress={() => setShowCurrent(s => !s)} style={styles.toggle}>
                   <Text style={{ fontWeight: "700" }}>{showCurrent ? "Ocultar" : "Ver"}</Text>
                 </Pressable>
               </View>
-              {errors.currentPassword && (
-                <Text style={styles.errorText}>{errors.currentPassword.message}</Text>
-              )}
+              {errors.currentPassword && <Text style={styles.errorText}>{errors.currentPassword.message}</Text>}
             </View>
           )}
         />
@@ -111,7 +121,7 @@ export default function CambiarPassword() {
                   onBlur={onBlur}
                   returnKeyType="next"
                 />
-                <Pressable onPress={() => setShowNew((s) => !s)} style={styles.toggle}>
+                <Pressable onPress={() => setShowNew(s => !s)} style={styles.toggle}>
                   <Text style={{ fontWeight: "700" }}>{showNew ? "Ocultar" : "Ver"}</Text>
                 </Pressable>
               </View>
@@ -120,7 +130,7 @@ export default function CambiarPassword() {
           )}
         />
 
-        {/* Confirmar contraseña */}
+        {/* Confirmar */}
         <Controller
           name="confirmPassword"
           control={control}
@@ -138,18 +148,15 @@ export default function CambiarPassword() {
                   onBlur={onBlur}
                   returnKeyType="done"
                 />
-                <Pressable onPress={() => setShowConfirm((s) => !s)} style={styles.toggle}>
+                <Pressable onPress={() => setShowConfirm(s => !s)} style={styles.toggle}>
                   <Text style={{ fontWeight: "700" }}>{showConfirm ? "Ocultar" : "Ver"}</Text>
                 </Pressable>
               </View>
-              {errors.confirmPassword && (
-                <Text style={styles.errorText}>{errors.confirmPassword.message}</Text>
-              )}
+              {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword.message}</Text>}
             </View>
           )}
         />
 
-        {/* Botón Guardar */}
         <Pressable
           disabled={!isValid || isSubmitting}
           onPress={handleSubmit(onSubmit)}
@@ -170,26 +177,10 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: "700", marginBottom: 8 },
   label: { fontSize: 14, fontWeight: "600", marginBottom: 6, alignSelf: "flex-start" },
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
-  input: {
-    width: "100%",
-    height: 48,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    backgroundColor: "#fff",
-  },
+  input: { width: "100%", height: 48, borderWidth: 1, borderColor: "#ddd", borderRadius: 10, paddingHorizontal: 12, backgroundColor: "#fff" },
   inputError: { borderColor: "#e11d48" },
   errorText: { color: "#e11d48", marginTop: 6 },
   toggle: { paddingHorizontal: 10, height: 48, justifyContent: "center" },
-  button: {
-    marginTop: 16,
-    width: "100%",
-    height: 48,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#111827",
-  },
+  button: { marginTop: 16, width: "100%", height: 48, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: "#111827" },
   buttonText: { color: "white", fontWeight: "700", fontSize: 16 },
 });

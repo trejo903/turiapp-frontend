@@ -1,3 +1,4 @@
+import { BASE_URL } from "@/src/lib/api";
 import { useRouter } from "expo-router";
 import { Controller, useForm } from 'react-hook-form';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
@@ -9,7 +10,6 @@ type FormValues={
     email:string
 }
 
-const API_URL = "http://192.168.1.12:5001/api"; 
 
 export default function CrearCuenta(){
     const{control,handleSubmit,formState:{errors,isSubmitted,isSubmitting,isValid},setError,reset} = useForm({
@@ -19,7 +19,7 @@ export default function CrearCuenta(){
 
     const onSubmit=async({email}:FormValues)=>{
         try {
-            const res = await fetch(`${API_URL}/usuarios/email`,{
+            const res = await fetch(`${BASE_URL}/usuarios/email`,{
                 method:"POST",
                 headers:{"Content-Type":"application/json"},
                 body:JSON.stringify({correo:email})

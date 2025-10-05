@@ -1,8 +1,37 @@
 
 
-export const BASE_URL = "http://192.168.1.12:5001/api"
+export const BASE_URL = "http://192.168.1.11:5001/api"
 
 //prueba
+
+export async function apiFetch(
+  path: string,
+  options: RequestInit = {},
+  token?: string | null
+) {
+  const headers = new Headers(options.headers || {});
+  headers.set("Accept", "application/json");
+  if (!headers.has("Content-Type") && options.body) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers,
+    credentials: "include", // si además usas cookies httpOnly
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+
+  const ct = res.headers.get("content-type") || "";
+  if (ct.includes("application/json")) return res.json();
+  return null;
+}
+
 
 export type Sitio = {
     id:number
