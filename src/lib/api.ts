@@ -103,14 +103,23 @@ export async function getCategorias() {
 
 
 // src/lib/api.ts
+// src/lib/api.ts (o donde declares los tipos)
 export type OpinionApi = {
   id: number;
   comentario: string;
-  puntuacion: number; // 1..5
-  fecha: string;
-  usuario: { id: number; nombre?: string | null; apellido?: string | null; correo: string };
-  sitio: { id: number };
+  puntuacion: number;
+  fecha: string; // o Date si lo parseas
+  usuarioId?: number;
+  sitioId?: number;
+
+  // 👇 relación que viene del backend
+  sitio?: {
+    id: number;
+    nombre?: string;     // hazlo opcional por si algún endpoint no lo manda
+    img?: string;        // opcional: lo que quieras aprovechar
+  };
 };
+
 
 export async function getOpinionesBySitio(sitioId: number): Promise<OpinionApi[]> {
   const url = `${BASE_URL}/opinion/sitio/${sitioId}`;
@@ -170,4 +179,13 @@ export async function getOpinionesDeUsuario(userId: number): Promise<OpinionApi[
 
 export async function getMisOpiniones(token: string): Promise<OpinionApi[]> {
   return apiFetch(`/opinion/mias`, {}, token);
+}
+
+export async function deleteOpinion(id: number) {
+  const res = await fetch(`${BASE_URL}/opinion/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.message ?? 'No se pudo eliminar el comentario');
+  }
+  return res.json();
 }
