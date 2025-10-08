@@ -228,7 +228,10 @@ export default function Mapa() {
         if (!mounted) return;
         setSitios(data);
 
+        console.log('Sitios cargados con categoría:', data);
         if (data.length > 0 && mapRef.current) {
+          console.log('Primer sitio - tiene categoría?:', data[0].categoria);
+          console.log('Es reservable?:', data[0].categoria?.reservable);
           const coords = data.map(s => ({ latitude: s.latitude as number, longitude: s.longitude as number }));
           if (userLocation) coords.push(userLocation);
           
@@ -498,6 +501,28 @@ export default function Mapa() {
                     <Text style={styles.dirText}>Abrir en mapas</Text>
                   </TouchableOpacity>
                 </View>
+
+                {/* En mapa.tsx, actualiza el Link del botón de reserva: */}
+                {selectedSitio.categoria?.reservable && (
+                  <Link
+                    href={{
+                      pathname: selectedSitio.categoria.nombre.toLowerCase().includes('hotel')
+                        ? "/categorias/reserva-hotel"
+                        : "/categorias/reserva",
+                      params: { sitioId: selectedSitio.id.toString() }
+                    }}
+                    asChild
+                  >
+                    <TouchableOpacity style={styles.reservaButton}>
+                      <MaterialCommunityIcons name="calendar-check" size={18} color="#fff" />
+                      <Text style={styles.reservaText}>
+                        {selectedSitio.categoria.nombre.toLowerCase().includes('hotel')
+                          ? "Reservar Hotel"
+                          : "Reservar Mesa"}
+                      </Text>
+                    </TouchableOpacity>
+                  </Link>
+                )}
               </View>
             </View>
           ) : (
@@ -623,4 +648,21 @@ const styles = StyleSheet.create({
     gap: 8
   },
   dirText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  reservaButton: {
+  flex: 1,
+  backgroundColor: "#007AFF",
+  padding: 12,
+  borderRadius: 8,
+  alignItems: "center",
+  flexDirection: 'row',
+  justifyContent: 'center',
+  gap: 8,
+  marginTop: 8
+},
+reservaText: { 
+  color: "#fff", 
+  fontSize: 16, 
+  fontWeight: "600" 
+},
+
 });

@@ -1,6 +1,6 @@
 import { useAuthGuard } from "@/src/hooks/useAuthGuard";
-import { useAuth } from "@/src/state/auth";
 import { BASE_URL } from "@/src/lib/api";
+import { useAuth } from "@/src/state/auth";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
@@ -164,6 +164,9 @@ export default function Perfil() {
         </Tile>
         <Tile label="Idioma" onPress={() => router.push("/(tabs)/usuario/opciones/idioma")}>
           <Ionicons name="language-outline" size={28} />
+        </Tile>
+        <Tile label="Mis Reservas" onPress={() => router.push({ pathname: "/(tabs)/usuario/opciones/misreservas", params: { userId: profile?.id } })}>
+          <Ionicons name="calendar" size={28} />
         </Tile>
       </View>
 

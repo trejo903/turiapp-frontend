@@ -1,22 +1,22 @@
-import { createOpinion, getOpinionesBySitio, getSitioById, Sitio, OpinionApi, createOpinionNoAuth } from "@/src/lib/api";
-import { Link, useLocalSearchParams } from "expo-router";
+// app/sitios/[id].tsx
+import { createOpinionNoAuth, getOpinionesBySitio, getSitioById, OpinionApi, Sitio } from "@/src/lib/api";
+import { useAuth } from "@/src/state/auth";
+import { useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  Alert,
+  View
 } from "react-native";
-import { useAuth } from "@/src/state/auth";
 
 export default function SitioScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -107,16 +107,7 @@ const userId = auth.user?.id!
           </Text>
         )}
 
-        {sitio.categoria?.reservable && (
-          <Link
-            href={{ pathname: "/categorias/reserva", params: { sitioId: sitio.id } }}
-            asChild
-          >
-            <Pressable style={styles.button}>
-              <Text style={{ color: "#fff", fontWeight: "bold" }}>Ir a Reserva</Text>
-            </Pressable>
-          </Link>
-        )}
+        
 
         <Text style={styles.sectionTitle}>Valoraciones</Text>
 

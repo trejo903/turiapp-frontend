@@ -1,4 +1,3 @@
-// app/categorias/reserva.tsx
 import { BASE_URL } from '@/src/lib/api';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -13,53 +12,69 @@ import {
   View
 } from 'react-native';
 
-export default function ReservaScreen() {
+const auth = { user: { id: 2 } };
+
+export default function ReservaHotelScreen() {
   const { sitioId } = useLocalSearchParams<{ sitioId: string }>();
-  const [fecha, setFecha] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [personas, setPersonas] = useState('');
+
+  const [fechaEntrada, setFechaEntrada] = useState(new Date());
+  const [fechaSalida, setFechaSalida] = useState(new Date(Date.now() + 86400000)); // +1 día
+  const [showEntradaPicker, setShowEntradaPicker] = useState(false);
+  const [showSalidaPicker, setShowSalidaPicker] = useState(false);
+  const [adultos, setAdultos] = useState('');
   const [menores, setMenores] = useState('');
   const [transporte, setTransporte] = useState(false);
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [email, setEmail] = useState('');
-  const auth = { user: { id: 2 } };
-  
+
+  const calcularNoches = () => {
+    const diff = fechaSalida.getTime() - fechaEntrada.getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  };
+
   const handleReserva = async () => {
     // 🔍 Mostrar datos actuales
     console.log('🧾 Datos actuales del formulario:', {
       nombre,
       telefono,
-      personas,
+      adultos,
       menores,
-      fecha,
+      fechaEntrada,
+      fechaSalida,
       transporte,
       sitioId,
       usuarioId: auth.user?.id,
     });
 
-    // ✅ Validaciones
-    if (!nombre.trim() || !telefono.trim() || !personas) {
+    // ✅ Validaciones reales
+    if (!nombre.trim() || !telefono.trim() || !adultos) {
       console.log('⚠️ Campos faltantes:', {
         nombreVacio: !nombre.trim(),
         telefonoVacio: !telefono.trim(),
-        personasVacio: !personas,
+        adultosVacio: !adultos,
       });
       Alert.alert('Error', 'Completa los campos obligatorios');
       return;
     }
 
+    if (fechaEntrada >= fechaSalida) {
+      Alert.alert('Error', 'La fecha de salida debe ser posterior a la de entrada');
+      return;
+    }
+
+    // 🧱 Datos finales a enviar al backend
     const reservaData = {
-      tipo: 'restaurante',
+      tipo: 'hotel',
       usuario_id: auth.user?.id,
       sitio_id: Number(sitioId),
       nombre: nombre.trim(),
       telefono: telefono.trim(),
       email: email.trim(),
       transporte: transporte,
-      fecha: fecha,
-      personas: Number(personas),
+      fecha_entrada: fechaEntrada,
+      fecha_salida: fechaSalida,
+      adultos: Number(adultos),
       menores: menores ? Number(menores) : 0,
     };
 
@@ -88,12 +103,11 @@ export default function ReservaScreen() {
     }
   };
 
-
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Reservar Mesa</Text>
-      
-      {/* Información Básica */}
+      <Text style={styles.title}>Reservar Hotel</Text>
+
+      {/* Información Personal */}
       <Text style={styles.sectionTitle}>Información Personal</Text>
       <TextInput
         style={styles.input}
@@ -116,42 +130,56 @@ export default function ReservaScreen() {
         keyboardType="email-address"
       />
 
-      {/* Fecha y Hora */}
-      <Text style={styles.sectionTitle}>Fecha y Hora</Text>
-      <TouchableOpacity 
-        style={styles.input} 
-        onPress={() => setShowDatePicker(true)}
+      {/* Fechas de Estadía */}
+      <Text style={styles.sectionTitle}>Fechas de Estadía</Text>
+      <Text style={styles.nochesText}>
+        {calcularNoches()} {calcularNoches() === 1 ? 'noche' : 'noches'}
+      </Text>
+
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() => setShowEntradaPicker(true)}
       >
-        <Text>Fecha: {fecha.toLocaleDateString()}</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.input} 
-        onPress={() => setShowTimePicker(true)}
-      >
-        <Text>Hora: {fecha.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+        <Text>Check-in: {fechaEntrada.toLocaleDateString()}</Text>
       </TouchableOpacity>
 
-      {(showDatePicker || showTimePicker) && (
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() => setShowSalidaPicker(true)}
+      >
+        <Text>Check-out: {fechaSalida.toLocaleDateString()}</Text>
+      </TouchableOpacity>
+
+      {(showEntradaPicker || showSalidaPicker) && (
         <DateTimePicker
-          value={fecha}
-          mode={showDatePicker ? 'date' : 'time'}
+          value={showEntradaPicker ? fechaEntrada : fechaSalida}
+          mode="date"
           display="default"
+          minimumDate={showEntradaPicker ? new Date() : fechaEntrada}
           onChange={(event, selectedDate) => {
-            setShowDatePicker(false);
-            setShowTimePicker(false);
-            if (selectedDate) setFecha(selectedDate);
+            setShowEntradaPicker(false);
+            setShowSalidaPicker(false);
+            if (selectedDate) {
+              if (showEntradaPicker) {
+                setFechaEntrada(selectedDate);
+                if (selectedDate >= fechaSalida) {
+                  setFechaSalida(new Date(selectedDate.getTime() + 86400000));
+                }
+              } else {
+                setFechaSalida(selectedDate);
+              }
+            }
           }}
         />
       )}
 
-      {/* Número de Personas */}
-      <Text style={styles.sectionTitle}>Número de Personas</Text>
+      {/* Huéspedes */}
+      <Text style={styles.sectionTitle}>Huéspedes</Text>
       <TextInput
         style={styles.input}
-        placeholder="Total de personas *"
-        value={personas}
-        onChangeText={setPersonas}
+        placeholder="Adultos *"
+        value={adultos}
+        onChangeText={setAdultos}
         keyboardType="numeric"
       />
       <TextInput
@@ -164,7 +192,7 @@ export default function ReservaScreen() {
 
       {/* Transporte */}
       <View style={styles.transporteContainer}>
-        <Text style={styles.transporteText}>¿Necesitas transporte?</Text>
+        <Text style={styles.transporteText}>¿Necesitas transporte al hotel?</Text>
         <TouchableOpacity
           style={[styles.checkbox, transporte && styles.checkboxSelected]}
           onPress={() => setTransporte(!transporte)}
@@ -184,26 +212,27 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#fff' },
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
   sectionTitle: { fontSize: 18, fontWeight: '600', marginTop: 16, marginBottom: 8 },
-  input: { 
-    borderWidth: 1, 
-    borderColor: '#ccc', 
-    borderRadius: 8, 
-    padding: 12, 
+  nochesText: { fontSize: 16, color: '#007AFF', fontWeight: '500', marginBottom: 12 },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 12,
     marginBottom: 12,
     backgroundColor: '#fff'
   },
-  transporteContainer: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
+  transporteContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginVertical: 16 
+    marginVertical: 16
   },
   transporteText: { fontSize: 16 },
-  checkbox: { 
-    width: 24, 
-    height: 24, 
-    borderWidth: 2, 
-    borderColor: '#007AFF', 
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: '#007AFF',
     borderRadius: 4,
     justifyContent: 'center',
     alignItems: 'center'
