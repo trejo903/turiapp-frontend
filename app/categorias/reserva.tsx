@@ -24,7 +24,7 @@ export default function ReservaScreen() {
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [email, setEmail] = useState('');
-  const auth = { user: { id: 2 } };
+  const auth = { user: { id: 1 } }; //pOR AHORA SOLO SIMULA 
   
   const handleReserva = async () => {
     // 🔍 Mostrar datos actuales

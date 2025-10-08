@@ -12,7 +12,7 @@ import {
   View
 } from 'react-native';
 
-const auth = { user: { id: 2 } };
+const auth = { user: { id: 1 } }; //pOR AHORA SOLO SIMULA 
 
 export default function ReservaHotelScreen() {
   const { sitioId } = useLocalSearchParams<{ sitioId: string }>();

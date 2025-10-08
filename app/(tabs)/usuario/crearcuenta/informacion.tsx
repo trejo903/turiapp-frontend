@@ -1,11 +1,10 @@
-import React from "react";
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
-import { useForm, Controller } from "react-hook-form";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
+import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { z } from "zod";
 
-import { useLocalSearchParams,useRouter } from "expo-router";
 import { BASE_URL } from "@/src/lib/api";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 const nameRegex = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?: [A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)*$/;
 
@@ -23,8 +22,7 @@ const schema = z.object({
 });
 const router = useRouter();
 type FormValues = z.infer<typeof schema>;
-
-const API_URL = "https://tu-backend.com/api"; // ← cámbiala
+ 
 
 export default function InformacionScreen() {
   // opcional: si vienes con userId de pantallas anteriores
