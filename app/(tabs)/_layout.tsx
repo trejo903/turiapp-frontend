@@ -19,6 +19,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+  name="recomendaciones"
+  options={{
+    title: "Recomendado",
+    tabBarIcon: ({ color, size }) => (
+      <MaterialCommunityIcons name="compass-outline" color={color} size={size} />
+    ),
+  }}
+/>
+      <Tabs.Screen
         name="usuario"
         options={{
           title:"Usuario",
@@ -27,6 +36,7 @@ export default function TabsLayout() {
           )
         }}
       />
+      
     </Tabs>
   )
 }
