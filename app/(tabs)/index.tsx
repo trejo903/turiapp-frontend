@@ -1,14 +1,18 @@
+// app/(tabs)/index.tsx
 import { getCategorias } from "@/src/lib/api";
-import { Link, Stack } from "expo-router";
-import { useEffect, useState } from "react";
+import { Link, Stack, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
   Text,
-  View
+  View,
+  TouchableOpacity,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 
 type Categoria = {
   id: number | string;
@@ -28,6 +32,9 @@ function getContrastText(bg?: string | null) {
 }
 
 export default function Index() {
+  const router = useRouter();
+  const tabBarH = useBottomTabBarHeight();
+
   const [data, setData] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,19 +68,21 @@ export default function Index() {
     );
   }
 
+  const openChat = () => {
+    router.push("/sitios/chat"); // 👈 ruta recomendada (archivo en app/chat.tsx)
+  };
+
   return (
-    <View  style={{ flex: 1, paddingTop: 20 }}>
+    <View style={{ flex: 1, paddingTop: 20 }}>
       <Stack.Screen options={{ title: "TuriApp" }} />
       <Text style={styles.subtitle}>Lugares por conocer</Text>
 
-
-      {/* 🔹 Lista de categorías */}
       <FlatList
         data={data}
         keyExtractor={(item) => String(item.id)}
         numColumns={2}
         columnWrapperStyle={styles.row}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }} // espacio para el FAB
         renderItem={({ item }) => {
           const bg = (item.color ?? "#f5f5f5").trim();
           const fg = getContrastText(bg);
@@ -86,15 +95,9 @@ export default function Index() {
               }}
               asChild
             >
-              <Pressable
-                android_ripple={{ color: "#00000022" }}
-                style={styles.card}
-              >
+              <Pressable android_ripple={{ color: "#00000022" }} style={styles.card}>
                 <View style={[styles.cardInner, { backgroundColor: bg }]}>
-                  <Text
-                    numberOfLines={2}
-                    style={[styles.cardTitle, { color: fg }]}
-                  >
+                  <Text numberOfLines={2} style={[styles.cardTitle, { color: fg }]}>
                     {item.nombre}
                   </Text>
                   <Text style={[styles.cardCta, { color: fg, opacity: 0.9 }]}>
@@ -107,26 +110,22 @@ export default function Index() {
         }}
         ListEmptyComponent={<Text>Sin datos</Text>}
       />
-    </View >
+
+      {/* FAB Chat */}
+      <TouchableOpacity
+        style={[styles.fabChat, { bottom: tabBarH + 16 }]}
+        onPress={openChat}
+        activeOpacity={0.9}
+      >
+        <MaterialCommunityIcons name="message-text-outline" size={24} color="#fff" />
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   subtitle: { fontSize: 20, textAlign: "center", marginBottom: 12 },
-
-  sectionTitle: { fontSize: 16, fontWeight: "600", marginBottom: 10 },
-  quickNav: { paddingHorizontal: 16, marginBottom: 20 },
-  quickNavRow: { flexDirection: "row", justifyContent: "space-between" },
-  quickButton: {
-    flex: 1,
-    backgroundColor: "#211C1C",
-    padding: 12,
-    borderRadius: 8,
-    marginHorizontal: 4,
-    marginBottom: 10,
-  },
-  quickButtonText: { color: "#fff", textAlign: "center", fontWeight: "600" },
 
   row: { justifyContent: "space-between", marginBottom: 12 },
   card: {
@@ -148,4 +147,21 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 15, fontWeight: "700" },
   cardCta: { fontSize: 12, fontWeight: "600" },
+
+  // FAB de chat
+  fabChat: {
+    position: "absolute",
+    right: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#0d0575ff",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
 });
