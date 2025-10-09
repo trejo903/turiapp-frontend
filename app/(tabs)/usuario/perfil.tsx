@@ -159,9 +159,6 @@ export default function Perfil() {
         <Tile label="Mis Comentarios" onPress={() => router.push({ pathname: "/(tabs)/usuario/opciones/miscomentarios", params: { userId: profile?.id } })}>
           <Ionicons name="chatbubbles" size={28} />
         </Tile>
-        <Tile label="Mis Compras" onPress={() => router.push({ pathname: "/(tabs)/usuario/opciones/miscompras", params: { userId: profile?.id } })}>
-          <MaterialIcons name="shopping-bag" size={28} />
-        </Tile>
         <Tile label="Idioma" onPress={() => router.push("/(tabs)/usuario/opciones/idioma")}>
           <Ionicons name="language-outline" size={28} />
         </Tile>

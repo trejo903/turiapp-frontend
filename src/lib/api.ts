@@ -1,6 +1,6 @@
 
 
-export const BASE_URL = "http://192.168.1.73:5001/api"
+export const BASE_URL = "http://192.168.1.3:5001/api"
 
 //prueba
 
