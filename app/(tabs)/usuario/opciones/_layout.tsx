@@ -9,6 +9,7 @@ export default function OpcionesLayout() {
       <Stack.Screen name="cambiarpassword" options={{ headerShown: false }}  />
       <Stack.Screen name="editarperfil" options={{ headerShown: false }}  />
       <Stack.Screen name="idioma" options={{ headerShown: false }}  />
+      <Stack.Screen name="misreservas" options={{ headerShown: false }}  />
     </Stack>
   );
 }

@@ -189,3 +189,40 @@ export async function deleteOpinion(id: number) {
   }
   return res.json();
 }
+
+
+
+// src/lib/api.ts
+export async function getFavoritosIds(userId: number, token?: string): Promise<number[]> {
+  const res = await fetch(`${BASE_URL}/usuarios/${userId}/favoritos`, {
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('No se pudieron cargar favoritos');
+  const data = await res.json();
+  // data.items: [{ sitio: {...}, ... }] si devolviste relaciones
+  // normalizamos a ids:
+  return Array.isArray(data.items)
+    ? data.items.map((f: any) => f.sitio?.id ?? f.sitioId)
+    : Array.isArray(data) ? data.map((f: any) => f.sitio?.id ?? f.sitioId) : [];
+}
+
+export async function addFavorito(userId: number, sitioId: number, token?: string) {
+  const res = await fetch(`${BASE_URL}/usuarios/${userId}/favoritos/${sitioId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('No se pudo guardar favorito');
+  return res.json();
+}
+
+export async function removeFavorito(userId: number, sitioId: number, token?: string) {
+  const res = await fetch(`${BASE_URL}/usuarios/${userId}/favoritos/${sitioId}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('No se pudo eliminar favorito');
+  return res.json();
+}

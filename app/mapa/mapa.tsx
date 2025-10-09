@@ -1,5 +1,5 @@
 // app/mapa/mapa.tsx
-import { getSitiosByCategoria, Sitio } from "@/src/lib/api";
+import { getSitiosByCategoria, Sitio,addFavorito, removeFavorito, getFavoritosIds} from "@/src/lib/api";
 import { ANARANJADOS_CIMA_KML, KMLRoute, parseKML } from '@/src/lib/kmlParser';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
@@ -20,6 +20,7 @@ import {
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import CLEAN_STYLE from '../../assets/map-style-clean.json';
+import { useAuth } from "@/src/state/auth";
 
 // ===== Helpers anti-flicker =====
 const movedEnough = (
@@ -91,6 +92,30 @@ const TruckMarker = React.memo(function TruckMarker({
 type TravelMode = 'DRIVING' | 'WALKING';
 
 export default function Mapa() {
+  const { user, token } = useAuth(); // user?.id
+const userId = user?.id ?? null;
+
+useEffect(() => {
+  let mounted = true;
+  (async () => {
+    try {
+      if (!userId) return; // no logueado
+      const ids = await getFavoritosIds(userId, token!);
+      if (!mounted) return;
+      setFavIds(new Set(ids));
+    } catch (e) {
+      console.log('No se pudieron cargar favoritos', e);
+    }
+  })();
+  return () => { mounted = false; };
+}, [userId, token]);
+
+
+
+
+const [favIds, setFavIds] = useState<Set<number>>(new Set()); // ids de sitios favoritos
+const isFav = useCallback((sitioId: number) => favIds.has(sitioId), [favIds]);
+
   const { nombre, catId } = useLocalSearchParams<{ nombre?: string, catId: string }>();
   const categoriaId = Number(catId);
   const [sitios, setSitios] = useState<Sitio[]>([]);
@@ -120,6 +145,37 @@ export default function Mapa() {
     latitudeDelta: 0.05,
     longitudeDelta: 0.05
   }), []);
+const toggleFavorito = useCallback(async (sitio: Sitio) => {
+  if (!userId) {
+    Alert.alert('Favoritos', 'Inicia sesión para guardar lugares.');
+    return;
+  }
+  const id = Number(sitio.id);
+  const wasFav = favIds.has(id);
+
+  // Optimista
+  setFavIds(prev => {
+    const next = new Set(prev);
+    wasFav ? next.delete(id) : next.add(id);
+    return next;
+  });
+
+  try {
+    if (wasFav) {
+      await removeFavorito(userId, id, token!);
+    } else {
+      await addFavorito(userId, id, token!);
+    }
+  } catch (e) {
+    // Revertir si falla
+    setFavIds(prev => {
+      const next = new Set(prev);
+      wasFav ? next.add(id) : next.delete(id);
+      return next;
+    });
+    Alert.alert('Favoritos', wasFav ? 'No se pudo quitar de favoritos.' : 'No se pudo guardar en favoritos.');
+  }
+}, [userId, token, favIds]);
 
   // Cargar ruta KML al montar el componente
   useEffect(() => {
@@ -500,6 +556,21 @@ export default function Mapa() {
                     <MaterialCommunityIcons name="navigation" size={18} color="#fff" />
                     <Text style={styles.dirText}>Abrir en mapas</Text>
                   </TouchableOpacity>
+
+                  {/* ✅ NUEVO: Guardar/Quitar favorito */}
+  <TouchableOpacity
+    style={[styles.favButton, isFav(selectedSitio.id) && styles.favButtonActive]}
+    onPress={() => toggleFavorito(selectedSitio)}
+  >
+    <MaterialCommunityIcons
+      name={isFav(selectedSitio.id) ? "heart" : "heart-outline"}
+      size={18}
+      color={isFav(selectedSitio.id) ? "#fff" : "#0d0575ff"}
+    />
+    <Text style={[styles.favText, isFav(selectedSitio.id) && styles.favTextActive]}>
+      {isFav(selectedSitio.id) ? "Quitar de favoritos" : "Guardar lugar"}
+    </Text>
+  </TouchableOpacity>
                 </View>
 
                 {/* En mapa.tsx, actualiza el Link del botón de reserva: */}
@@ -664,5 +735,25 @@ reservaText: {
   fontSize: 16, 
   fontWeight: "600" 
 },
+
+favButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  backgroundColor: '#fff',
+  borderWidth: 1,
+  borderColor: '#0d0575ff',
+  borderRadius: 8,
+  paddingVertical: 12,
+  marginTop: 8,
+},
+favButtonActive: {
+  backgroundColor: '#0d0575ff',
+  borderColor: '#0d0575ff',
+},
+favText: { color: '#0d0575ff', fontSize: 16, fontWeight: '600' },
+favTextActive: { color: '#fff' },
+
 
 });
