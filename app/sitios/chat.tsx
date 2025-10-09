@@ -5,7 +5,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,6 +13,7 @@ import {
 } from "react-native";
 import { Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Msg = { id: string; role: "user" | "bot"; text: string; ts: number };
 
@@ -23,6 +23,8 @@ const SURFACE = "#f5f6fa";
 const BUBBLE_BOT = "#eef1f6";
 
 export default function Chat() {
+  const insets = useSafeAreaInsets();
+
   const [msgs, setMsgs] = useState<Msg[]>([
     { id: "hello", role: "bot", text: `Hola, soy ${BOT_NAME} 👋 ¿En qué te ayudo?`, ts: Date.now() },
   ]);
@@ -30,7 +32,6 @@ export default function Chat() {
   const [thinking, setThinking] = useState(false);
   const listRef = useRef<FlatList<Msg>>(null);
 
-  // autoscroll al final cuando llegan mensajes
   useEffect(() => {
     const t = setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
     return () => clearTimeout(t);
@@ -39,21 +40,16 @@ export default function Chat() {
   const handleSend = async () => {
     const text = input.trim();
     if (!text) return;
-
     const userMsg: Msg = { id: Math.random().toString(36), role: "user", text, ts: Date.now() };
     setMsgs((m) => [...m, userMsg]);
     setInput("");
     setThinking(true);
 
     const reply = await ruleBasedReply(text);
-    setMsgs((m) => [
-      ...m,
-      { id: Math.random().toString(36), role: "bot", text: reply, ts: Date.now() },
-    ]);
+    setMsgs((m) => [...m, { id: Math.random().toString(36), role: "bot", text: reply, ts: Date.now() }]);
     setThinking(false);
   };
 
-  // Respuestas sencillas por reglas (placeholder de IA)
   const ruleBasedReply = async (text: string): Promise<string> => {
     const t = text.toLowerCase();
     if (/\b(hola|hello|buenas|hey)\b/.test(t))
@@ -90,7 +86,7 @@ export default function Chat() {
   };
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={[s.container]} edges={["top", "left", "right"]}>
       <Stack.Screen options={{ title: "Chat", headerTitleAlign: "left" }} />
 
       <FlatList
@@ -98,11 +94,11 @@ export default function Chat() {
         data={msgs}
         keyExtractor={(m) => m.id}
         renderItem={renderItem}
-        contentContainerStyle={s.listContent}
+        contentContainerStyle={[s.listContent, { paddingBottom: 96 + insets.bottom }]}
       />
 
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <View style={s.inputWrap}>
+        <View style={[s.inputWrap, { paddingBottom: 12 + insets.bottom }]}>
           <View style={s.inputBar}>
             <TextInput
               value={input}
@@ -141,7 +137,7 @@ function timeFmt(ts: number) {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: SURFACE },
-  listContent: { padding: 12, paddingBottom: 96, gap: 8 },
+  listContent: { padding: 12, gap: 8 },
 
   row: { width: "100%", flexDirection: "row", marginBottom: 6, alignItems: "flex-end" },
   rowStart: { justifyContent: "flex-start" },
@@ -176,8 +172,7 @@ const s = StyleSheet.create({
   timeUser: { color: "#e6e6e6", textAlign: "right" },
   timeBot: { color: "#667085" },
 
-  // barra de entrada flotante
-  inputWrap: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 12 },
+  inputWrap: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 12 },
   inputBar: {
     flexDirection: "row",
     alignItems: "center",
