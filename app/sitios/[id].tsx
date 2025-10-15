@@ -1,7 +1,7 @@
 // app/sitios/[id].tsx
 import { createOpinionNoAuth, getOpinionesBySitio, getSitioById, OpinionApi, Sitio } from "@/src/lib/api";
 import { useAuth } from "@/src/state/auth";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -54,31 +54,42 @@ const userId = auth.user?.id!
   }, [opiniones]);
 
   const handleEnviarOpinion = async () => {
-    // Validaciones simples
-    if (!isLoggedIn) {
-      Alert.alert("Inicia sesión", "Debes iniciar sesión para opinar.");
-      return;
-    }
-    const txt = comentario.trim();
-    if (!txt) {
-      Alert.alert("Comentario requerido", "Escribe tu comentario.");
-      return;
-    }
-    const score = Math.max(1, Math.min(5, Math.round(Number(puntuacion) || 0))); // 1..5, entero
+  if (!isLoggedIn) {
+    Alert.alert("Inicia sesión", "Debes iniciar sesión para opinar.");
+    return;
+  }
 
-    try {
-      setEnviando(true);
-      const nueva = await createOpinionNoAuth(sitioId, txt, score, userId);
-      // prepend
-      setOpiniones((prev) => [nueva, ...prev]);
-      setComentario("");
-      setPuntuacion(5);
-    } catch (err: any) {
-      Alert.alert("No se pudo enviar", err?.message ?? "Intenta de nuevo");
-    } finally {
-      setEnviando(false);
-    }
-  };
+  const txt = comentario.trim();
+  if (!txt) {
+    Alert.alert("Comentario requerido", "Escribe tu comentario.");
+    return;
+  }
+
+  if (puntuacion < 1 || puntuacion > 5) {
+    Alert.alert("Puntuación inválida", "La puntuación debe estar entre 1 y 5 estrellas.");
+    return;
+  }
+
+  try {
+    setEnviando(true);
+    const nueva = await createOpinionNoAuth(sitioId, txt, puntuacion, userId);
+
+    setOpiniones((prev) => [nueva, ...prev]);
+    setComentario("");
+    setPuntuacion(5);
+
+    // Mensaje de confirmación con aviso de anonimato
+    Alert.alert(
+      "Gracias por compartir tu experiencia.",
+      "Tus opiniones se mantendrán anónimas y serán visibles públicamente solo con tu puntuación."
+    );
+  } catch (err: any) {
+    Alert.alert("No se pudo enviar", err?.message ?? "Intenta de nuevo");
+  } finally {
+    setEnviando(false);
+  }
+};
+
 
   if (loading) return <ActivityIndicator size="large" style={{ flex: 1 }} />;
   if (!sitio) return <Text style={{ padding: 16 }}>No se encontró el sitio</Text>;
@@ -129,28 +140,55 @@ const userId = auth.user?.id!
         <Text style={styles.sectionTitle}>Deja tu opinión</Text>
         {!isLoggedIn && (
           <Text style={{ color: "#f43f5e", marginBottom: 6 }}>
-            Debes iniciar sesión para publicar una opinión.
+            Debes{" "}
+            <Text
+              style={{ color: "#2563eb", textDecorationLine: "underline" }}
+              onPress={() => {
+                router.push({
+                  pathname: "/usuario/login",
+                  params: {
+                    redirectTo: `/sitios/${id}`, // 👈 regresa al sitio actual
+                  },
+                });
+              }}
+            >
+              iniciar sesión
+            </Text>{" "}
+            para publicar una opinión.
           </Text>
         )}
 
+
+        {/* Campo para comentarios */}
         <TextInput
           style={styles.input}
           placeholder="Escribe tu comentario..."
           value={comentario}
           onChangeText={setComentario}
           multiline
+          editable={isLoggedIn}
         />
+
         <TextInput
           style={styles.input}
           placeholder="Puntuación (1-5)"
-          value={String(puntuacion)}
+          value={puntuacion ? String(puntuacion) : ""}
           onChangeText={(val) => {
-            const n = Number(val.replace(/[^0-9]/g, ""));
-            setPuntuacion(Number.isFinite(n) ? Math.max(1, Math.min(5, n)) : 5);
+            // Permitir dejar el campo vacío mientras escribe
+            if (val === "") {
+              setPuntuacion(0);
+              return;
+            }
+
+            const num = Number(val);
+            if (!isNaN(num) && num >= 1 && num <= 5) {
+              setPuntuacion(num);
+            }
           }}
           keyboardType="numeric"
           maxLength={1}
         />
+
 
         <TouchableOpacity
           style={[styles.button, (!isLoggedIn || enviando) && { opacity: 0.6 }]}

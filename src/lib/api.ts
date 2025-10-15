@@ -1,3 +1,4 @@
+import { cancelarRecordatorio, notificarConfirmacion, programarRecordatorio } from "@/src/lib/notificaciones";
 
 
 export const BASE_URL = "http://192.168.1.3:5001/api"
@@ -112,7 +113,7 @@ export type OpinionApi = {
   usuarioId?: number;
   sitioId?: number;
 
-  // 👇 relación que viene del backend
+  // relación que viene del backend
   sitio?: {
     id: number;
     nombre?: string;     // hazlo opcional por si algún endpoint no lo manda
@@ -191,8 +192,6 @@ export async function deleteOpinion(id: number) {
 }
 
 
-
-// src/lib/api.ts
 export async function getFavoritosIds(userId: number, token?: string): Promise<number[]> {
   const res = await fetch(`${BASE_URL}/usuarios/${userId}/favoritos`, {
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -225,4 +224,25 @@ export async function removeFavorito(userId: number, sitioId: number, token?: st
   });
   if (!res.ok) throw new Error('No se pudo eliminar favorito');
   return res.json();
+}
+// no te confuncds crearReservaFrontend
+export async function crearReservaFrontend(data) {
+  const res = await fetch(`${BASE_URL}/reservas`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const reserva = await res.json();
+
+  // Notificaciones locales
+  await notificarConfirmacion(reserva.sitioNombre, new Date(reserva.fechaEntrada));
+  const idNotificacion = await programarRecordatorio(reserva.sitioNombre, new Date(reserva.fechaEntrada));
+
+  // Puedes enviar este ID al backend si quieres mantener sincronía
+  return { ...reserva, notificationId: idNotificacion };
+}
+
+export async function cancelarReservaFrontend(reserva) {
+  await fetch(`${BASE_URL}/reservas/${reserva.id}`, { method: "DELETE" });
+  await cancelarRecordatorio(reserva.notificationId, reserva.sitioNombre);
 }

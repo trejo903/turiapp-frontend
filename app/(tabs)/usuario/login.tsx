@@ -1,10 +1,10 @@
 // app/(tabs)/usuario/login.tsx  (tu archivo "Usuario" del ejemplo)
-import React, { useCallback } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { Link, useRouter, useFocusEffect } from "expo-router";
-import { View, Text, KeyboardAvoidingView, Platform, StyleSheet, TextInput, Pressable, Alert } from "react-native";
 import { BASE_URL } from "@/src/lib/api";
 import { useAuth } from "@/src/state/auth";
+import { Link, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 type FormValues = { email: string };
 type LoginStartResp = {
@@ -20,6 +20,7 @@ type LoginStartResp = {
 export default function Usuario() {
   const router = useRouter();
   const { isAuthenticated, hasValidToken, user } = useAuth();
+  const { redirectTo } = useLocalSearchParams<{ redirectTo?: string }>();
 
   // ✅ Si ya hay sesión válida, redirige directo a perfil
   useFocusEffect(
@@ -69,7 +70,7 @@ export default function Usuario() {
           });
           break;
         case "password-check":
-          router.replace({ pathname: "/(tabs)/usuario/nextlogin", params: { userId, email: body.correo } });
+          router.replace({ pathname: "/(tabs)/usuario/nextlogin", params: { userId, email: body.correo, redirectTo, } });
           break;
       }
     } catch (e: any) {

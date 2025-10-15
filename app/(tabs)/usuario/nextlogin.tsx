@@ -1,21 +1,20 @@
-// app/(tabs)/usuario/nextlogin.tsx
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-} from "react-native";
-import { useForm, Controller } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useLocalSearchParams, useRouter } from "expo-router";
 import { BASE_URL } from "@/src/lib/api";
 import { useAuth } from "@/src/state/auth";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { z } from "zod";
 
 const schema = z.object({
   password: z.string().min(8, "Mínimo 8 caracteres").max(72, "Máximo 72"),
@@ -23,13 +22,15 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function NextLogin() {
-
-
   const router = useRouter();
-  const { email } = useLocalSearchParams<{ email?: string; userId?: string }>();
+  const { email, userId, redirectTo } = useLocalSearchParams<{
+    email?: string;
+    userId?: string;
+    redirectTo?: string;
+  }>(); // 👈 ahora leemos redirectTo
   const [show, setShow] = useState(false);
-  const auth = useAuth(); // acceder a login()
-  
+  const auth = useAuth();
+
   const {
     control,
     handleSubmit,
@@ -49,13 +50,15 @@ export default function NextLogin() {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        //credentials: "include", // por si usas cookie httpOnly
         body: JSON.stringify({ correo: email, password }),
       });
 
       if (!res.ok) {
         if (res.status === 401) {
-          setError("password", { type: "auth", message: "Contraseña incorrecta" });
+          setError("password", {
+            type: "auth",
+            message: "Contraseña incorrecta",
+          });
           return;
         }
         if (res.status === 403) {
@@ -66,7 +69,6 @@ export default function NextLogin() {
         throw new Error(text || `Error ${res.status}`);
       }
 
-      // Esperado: { user: { ... }, accessToken: "..." }
       const body: any = await res.json();
       if (!body?.accessToken || !body?.user?.id) {
         throw new Error("Respuesta inválida del servidor");
@@ -75,20 +77,32 @@ export default function NextLogin() {
       // ✅ Guarda sesión en Zustand
       auth.login({ user: body.user, token: body.accessToken });
 
-      router.replace({
-        pathname: "/(tabs)/usuario/perfil",
-        params: {
-          userId: String(body.user.id),
-          email: String(body.user.correo ?? email ?? ""),
-        },
-      });
+      // ✅ Si se proporcionó redirectTo, regresa a esa ruta (ej: /sitios/98)
+      if (redirectTo) {
+        router.replace(redirectTo as any);
+      } else {
+        // flujo normal al perfil
+        router.replace({
+          pathname: "/(tabs)/usuario/perfil",
+          params: {
+            userId: String(body.user.id),
+            email: String(body.user.correo ?? email ?? ""),
+          },
+        });
+      }
     } catch (e: any) {
-      Alert.alert("No pudimos iniciar sesión", e?.message ?? "Intenta de nuevo");
+      Alert.alert(
+        "No pudimos iniciar sesión",
+        e?.message ?? "Intenta de nuevo"
+      );
     }
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.select({ ios: "padding" })}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.select({ ios: "padding" })}
+    >
       <View style={styles.container}>
         <Text style={styles.title}>Ingresa tu contraseña</Text>
         {!!email && <Text style={styles.subtitle}>{email}</Text>}
@@ -101,7 +115,11 @@ export default function NextLogin() {
               <Text style={styles.label}>Contraseña</Text>
               <View className="row" style={styles.row}>
                 <TextInput
-                  style={[styles.input, errors.password && styles.inputError, { flex: 1 }]}
+                  style={[
+                    styles.input,
+                    errors.password && styles.inputError,
+                    { flex: 1 },
+                  ]}
                   placeholder="********"
                   autoCapitalize="none"
                   secureTextEntry={!show}
@@ -111,11 +129,20 @@ export default function NextLogin() {
                   returnKeyType="done"
                   onSubmitEditing={handleSubmit(onSubmit)}
                 />
-                <Pressable onPress={() => setShow((s) => !s)} style={styles.toggle}>
-                  <Text style={{ fontWeight: "700" }}>{show ? "Ocultar" : "Ver"}</Text>
+                <Pressable
+                  onPress={() => setShow((s) => !s)}
+                  style={styles.toggle}
+                >
+                  <Text style={{ fontWeight: "700" }}>
+                    {show ? "Ocultar" : "Ver"}
+                  </Text>
                 </Pressable>
               </View>
-              {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
+              {errors.password && (
+                <Text style={styles.errorText}>
+                  {errors.password.message}
+                </Text>
+              )}
             </View>
           )}
         />
@@ -129,7 +156,9 @@ export default function NextLogin() {
             pressed && { opacity: 0.8 },
           ]}
         >
-          <Text style={styles.buttonText}>{isSubmitting ? "Verificando..." : "Iniciar sesión"}</Text>
+          <Text style={styles.buttonText}>
+            {isSubmitting ? "Verificando..." : "Iniciar sesión"}
+          </Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -137,10 +166,21 @@ export default function NextLogin() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, gap: 14, alignItems: "center", backgroundColor: "#fff" },
+  container: {
+    flex: 1,
+    padding: 20,
+    gap: 14,
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
   title: { fontSize: 18, fontWeight: "700", marginTop: 12, marginBottom: 2 },
   subtitle: { fontSize: 14, color: "#6b7280", marginBottom: 8 },
-  label: { fontSize: 14, fontWeight: "600", marginBottom: 6, alignSelf: "flex-start" },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 6,
+    alignSelf: "flex-start",
+  },
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
   input: {
     width: "100%",
