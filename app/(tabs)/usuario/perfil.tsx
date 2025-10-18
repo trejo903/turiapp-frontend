@@ -1,7 +1,8 @@
+// app/(tabs)/usuario/perfil.tsx
 import { useAuthGuard } from "@/src/hooks/useAuthGuard";
 import { BASE_URL } from "@/src/lib/api";
 import { useAuth } from "@/src/state/auth";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";

@@ -1,4 +1,4 @@
-// app/(tabs)/usuario/login.tsx  (tu archivo "Usuario" del ejemplo)
+// app/(tabs)/usuario/login.tsx 
 import { BASE_URL } from "@/src/lib/api";
 import { useAuth } from "@/src/state/auth";
 import { Link, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";

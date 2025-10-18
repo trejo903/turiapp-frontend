@@ -1,7 +1,8 @@
 import { cancelarRecordatorio, notificarConfirmacion, programarRecordatorio } from "@/src/lib/notificaciones";
 
 
-export const BASE_URL = "http://192.168.1.3:5001/api"
+export const BASE_URL = "https://turiapp-backend.onrender.com/api";
+
 
 //prueba
 
@@ -226,7 +227,15 @@ export async function removeFavorito(userId: number, sitioId: number, token?: st
   return res.json();
 }
 // no te confuncds crearReservaFrontend
-export async function crearReservaFrontend(data) {
+export type ReservaData = {
+  sitioId: number;
+  usuarioId: number;
+  fechaEntrada: string | Date;
+  fechaSalida?: string | Date;
+  // agrega otros campos según tu modelo
+};
+
+export async function crearReservaFrontend(data: ReservaData) {
   const res = await fetch(`${BASE_URL}/reservas`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -242,7 +251,7 @@ export async function crearReservaFrontend(data) {
   return { ...reserva, notificationId: idNotificacion };
 }
 
-export async function cancelarReservaFrontend(reserva) {
+export async function cancelarReservaFrontend(reserva: ReservaData & { id: number; notificationId?: string; sitioNombre?: string }) {
   await fetch(`${BASE_URL}/reservas/${reserva.id}`, { method: "DELETE" });
   await cancelarRecordatorio(reserva.notificationId, reserva.sitioNombre);
 }

@@ -12,7 +12,7 @@ export async function notificarConfirmacion(nombreSitio: string, fechaEntrada: D
   });
 }
 
-/** 🕓 Recordatorio automático (2 horas antes del check-in) */
+//Recordatorio automático (2 horas antes del check-in)
 export async function programarRecordatorio(nombreSitio: string, fechaEntrada: Date) {
   const recordatorio = new Date(fechaEntrada.getTime() - 2 * 60 * 60 * 1000);
   const id = await Notifications.scheduleNotificationAsync({
@@ -20,7 +20,9 @@ export async function programarRecordatorio(nombreSitio: string, fechaEntrada: D
       title: "Recordatorio de reserva 🏨",
       body: `Tienes una reserva en ${nombreSitio} hoy a las ${fechaEntrada.toLocaleTimeString()}.`,
     },
-    trigger: recordatorio,
+    trigger: {
+      date: recordatorio,
+    },
   });
   return id;
 }
@@ -34,6 +36,11 @@ export async function cancelarRecordatorio(notificationId?: string, nombreSitio?
       body: `Hoy tenías tu visita a ${nombreSitio}... ¿Quieres volver a intentarlo o ver nuevos lugares?`,
       data: { type: "reengagement" },
     },
-    trigger: { seconds: 300 }, // 5 minutos después
+    trigger: null, //de momento
+    /**trigger: {
+      seconds: 5,
+      repeats: false,
+    },*/
+    
   });
 }

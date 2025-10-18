@@ -20,6 +20,8 @@
     "android": {
       "permissions": [
         "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
       ],
       "adaptiveIcon": {
@@ -34,7 +36,8 @@
         }
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.turiappfrontend"
     },
     "web": {
       "output": "static",
@@ -55,11 +58,18 @@
         }
       ],
       "expo-maps",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ac045e3e-5277-45a4-8ff2-d76095179ba3"
+      }
     }
   }
 }
