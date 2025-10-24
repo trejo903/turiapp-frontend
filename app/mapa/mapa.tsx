@@ -1,6 +1,7 @@
 // app/mapa/mapa.tsx
-import { getSitiosByCategoria, Sitio,addFavorito, removeFavorito, getFavoritosIds} from "@/src/lib/api";
+import { addFavorito, getFavoritosIds, getSitiosByCategoria, removeFavorito, Sitio } from "@/src/lib/api";
 import { ANARANJADOS_CIMA_KML, KMLRoute, parseKML } from '@/src/lib/kmlParser';
+import { useAuth } from "@/src/state/auth";
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import * as Location from "expo-location";
@@ -20,7 +21,6 @@ import {
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import CLEAN_STYLE from '../../assets/map-style-clean.json';
-import { useAuth } from "@/src/state/auth";
 
 // ===== Helpers anti-flicker =====
 const movedEnough = (
@@ -61,7 +61,7 @@ const SiteMarker = React.memo(function SiteMarker({
   );
 });
 
-// Marker para el camión en la ruta
+//  Marker para el camión en la ruta
 const TruckMarker = React.memo(function TruckMarker({
   coordinate,
   onPress,
@@ -87,7 +87,7 @@ const TruckMarker = React.memo(function TruckMarker({
       <MaterialCommunityIcons name="truck" size={32} color="#F9A825" />
     </Marker>
   );
-});
+}); 
 
 type TravelMode = 'DRIVING' | 'WALKING';
 
@@ -189,7 +189,7 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
     }
   }, []);
 
-  // Animación del camión a lo largo de la ruta
+  /** Animación del camión a lo largo de la ruta
   useEffect(() => {
     if (!kmlRoute || !showRoute) return;
 
@@ -223,7 +223,7 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
         clearTimeout(truckAnimationRef.current);
       }
     };
-  }, [kmlRoute, showRoute]);
+  }, [kmlRoute, showRoute]); */
 
   // Permisos + ubicación actual + watcher
   useEffect(() => {
@@ -433,9 +433,9 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
         )}
 
         {/* Marcador del camión */}
-        {showRoute && truckPosition && (
+        {/* {showRoute && truckPosition && (
           <TruckMarker coordinate={truckPosition} onPress={handleTruckPress} />
-        )}
+        )} */}
 
         {userLocation && (
           <Marker coordinate={userLocation} title="Tú estás aquí" tracksViewChanges>
