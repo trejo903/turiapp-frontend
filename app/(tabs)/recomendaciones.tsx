@@ -1,5 +1,11 @@
 // app/(tabs)/recomendaciones.tsx
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import FilterModal from "@/src/components/FilterModal";
+import { BASE_URL } from "@/src/lib/api";
+import { useAuth } from "@/src/state/auth";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Location from "expo-location";
+import { Link } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -13,11 +19,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import * as Location from "expo-location";
-import { Link } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useAuth } from "@/src/state/auth";
-import { BASE_URL } from "@/src/lib/api";
 
 type Reco = {
   id: number;
@@ -30,6 +31,7 @@ type Reco = {
   cp?: string | null;
   score?: number;
   distancekm?: number; // si tu API lo regresa en snake/camel ajusta abajo
+  reviewCount?: number;
 };
 
 const formatImageUrl = (imgPath?: string | null) => {
@@ -46,12 +48,58 @@ export default function RecomendacionesTab() {
   const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState<Reco[]>([]);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('distance'); // 'distance', 'rating', 'popular', 'combined'
 
   const subtitle = useMemo(() => {
     if (!userLocation) return "Cerca de ti";
     return `Cerca de ti (${userLocation.latitude.toFixed(3)}, ${userLocation.longitude.toFixed(3)})`;
   }, [userLocation]);
 
+  // Función para ordenar los items según el filtro seleccionado
+  const sortedItems = useMemo(() => {
+    const itemsCopy = [...items];
+    
+    switch (selectedFilter) {
+      case 'distance':
+        return itemsCopy.sort((a, b) => (a.distancekm || Infinity) - (b.distancekm || Infinity));
+      
+      case 'rating':
+        return itemsCopy.sort((a, b) => (b.score || 0) - (a.score || 0));
+      
+      case 'popular':
+        return itemsCopy.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
+      
+      case 'combined':
+        // Combinación de distancia y rating (50% cada uno)
+        return itemsCopy.sort((a, b) => {
+          const scoreA = calculateCombinedScore(a);
+          const scoreB = calculateCombinedScore(b);
+          return scoreB - scoreA;
+        });
+      
+      default:
+        return itemsCopy;
+    }
+  }, [items, selectedFilter]);
+
+  const calculateCombinedScore = (item: Reco) => {
+    const maxDistance = Math.max(...items.map(i => i.distancekm || 0));
+    const normalizedDistance = maxDistance > 0 ? 1 - ((item.distancekm || 0) / maxDistance) : 0;
+    const normalizedRating = (item.score || 0) / 5;
+    
+    return (normalizedDistance * 0.5) + (normalizedRating * 0.5);
+  };
+
+  const getFilterLabel = () => {
+    switch (selectedFilter) {
+      case 'distance': return 'Más cercano';
+      case 'rating': return 'Mejor puntuado';
+      case 'popular': return 'Más opinado';
+      case 'combined': return 'Recomendado';
+      default: return 'Filtrar';
+    }
+  };
   const openMaps = useCallback(
     async (lat: number, lng: number) => {
       const origin = userLocation ? `${userLocation.latitude},${userLocation.longitude}` : null;
@@ -80,11 +128,11 @@ export default function RecomendacionesTab() {
       setLoading(true);
       const url = `${BASE_URL}/recs/nearby?lat=${userLocation.latitude}&lng=${userLocation.longitude}${
         userId ? `&userId=${userId}` : ""
-      }&k=30`;
+      }&k=30&includeReviews=true`; // Añadir includeReviews para contar opiniones
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      // Normaliza campos que puedan venir en snake_case
+      
       const mapped: Reco[] = data.map((r: any) => ({
         id: Number(r.id),
         nombre: r.nombre,
@@ -96,6 +144,7 @@ export default function RecomendacionesTab() {
         cp: r.cp ?? null,
         score: Number(r.score ?? r.reco_score ?? 0),
         distancekm: Number(r.distanceKm ?? r.distance_km ?? r.distance ?? 0),
+        reviewCount: Number(r.reviewCount ?? r.review_count ?? 0), // Nuevo campo
       }));
       setItems(mapped);
     } catch (e: any) {
@@ -142,8 +191,7 @@ export default function RecomendacionesTab() {
             <MaterialCommunityIcons name="image-off-outline" size={36} color="#888" />
           </View>
         )}
-
-        <View style={s.cardBody}>
+         <View style={s.cardBody}>
           <Text style={s.title}>{item.nombre}</Text>
           <Text style={s.meta}>
             {item.municipio}, {item.estado}
@@ -160,6 +208,12 @@ export default function RecomendacionesTab() {
               <View style={s.badge}>
                 <MaterialCommunityIcons name="star-outline" size={14} />
                 <Text style={s.badgeText}>{item.score.toFixed(2)}</Text>
+              </View>
+            )}
+            {typeof item.reviewCount === "number" && item.reviewCount > 0 && (
+              <View style={s.badge}>
+                <MaterialCommunityIcons name="message-text-outline" size={14} />
+                <Text style={s.badgeText}>{item.reviewCount}</Text>
               </View>
             )}
           </View>
@@ -180,10 +234,19 @@ export default function RecomendacionesTab() {
     );
   };
 
-  return (
+ return (
     <View style={s.container}>
       <View style={s.header}>
-        <Text style={s.h1}>Recomendados</Text>
+        <View style={s.headerTop}>
+          <Text style={s.h1}>Recomendados</Text>
+          <TouchableOpacity 
+            style={s.filterButton}
+            onPress={() => setFilterModalVisible(true)}
+          >
+            <MaterialCommunityIcons name="filter-variant" size={20} color="#0d0575ff" />
+            <Text style={s.filterButtonText}>{getFilterLabel()}</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={s.h2}>{subtitle}</Text>
       </View>
 
@@ -202,6 +265,12 @@ export default function RecomendacionesTab() {
           ListEmptyComponent={<Text style={s.empty}>No hay recomendaciones por ahora.</Text>}
         />
       )}
+      <FilterModal
+        visible={filterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        selectedFilter={selectedFilter}
+        onFilterChange={setSelectedFilter}
+      />
     </View>
   );
 }
@@ -209,8 +278,31 @@ export default function RecomendacionesTab() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   header: { padding: 16, paddingBottom: 6 },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   h1: { fontSize: 22, fontWeight: "700", color: "#0d0575ff" },
   h2: { fontSize: 14, color: "#666", marginTop: 2 },
+  
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#f8f9ff',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0d0575ff',
+  },
 
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
   loadingTxt: { color: "#666" },

@@ -449,7 +449,7 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
             origin={userLocation}
             destination={{ latitude: Number(selectedSitio.latitude), longitude: Number(selectedSitio.longitude) }}
             mode={travelMode}
-            apikey={"AIzaSyCyOStS0RVh1xJ2kX0N-l3ejlA_Hym1-1k"}
+            apikey={process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? ""}
             strokeWidth={4}
             onReady={onDirectionsReady}
             onError={(e) => console.log('Directions error', e)}

@@ -14,7 +14,7 @@
       },
       "supportsTablet": true,
       "config": {
-        "googleMapsApiKey": "AIzaSyBohq6bG8WU0FF3MG2uvueIPPCE_EIFgus"
+        "googleMapsApiKey": "process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''"
       }
     },
     "android": {
@@ -32,7 +32,7 @@
       },
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyBohq6bG8WU0FF3MG2uvueIPPCE_EIFgus"
+          "apiKey": "process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''"
         }
       },
       "edgeToEdgeEnabled": true,
