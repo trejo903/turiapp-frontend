@@ -4,7 +4,7 @@
     "slug": "turiapp-frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
+    "icon": "./assets/images/logo2.png",
     "scheme": "turiappfrontend",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -26,9 +26,9 @@
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/logo.png",
-        "backgroundImage": "./assets/images/logo.png",
-        "monochromeImage": "./assets/images/logo.png"
+        "foregroundImage": "./assets/images/logo2.png",
+        "backgroundImage": "./assets/images/logo2.png",
+        "monochromeImage": "./assets/images/logo2.png"
       },
       "config": {
         "googleMaps": {
@@ -41,14 +41,14 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/logo.png"
+      "favicon": "./assets/images/logo2.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo.png",
+          "image": "./assets/images/logo2.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
