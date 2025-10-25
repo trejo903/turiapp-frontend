@@ -311,6 +311,14 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
   }, [categoriaId, kmlRoute]);
 
   const handleMarkerPress = useCallback((sitio: Sitio) => {
+    console.log(" Sitio seleccionado:", sitio);
+    console.log(" ID:", sitio.id);
+    console.log(" Nombre:", sitio.nombre);
+    console.log(" Teléfono:", sitio.telefono);
+    console.log(" Dirección:", `${sitio.calle}, ${sitio.fraccionamiento}`);
+    console.log(" Categoría:", sitio.categoria?.nombre);
+    console.log(" Reservable:", sitio.categoria?.reservable);
+
     setSelectedSitio(sitio);
     bottomSheetRef.current?.expand();
   }, []);
