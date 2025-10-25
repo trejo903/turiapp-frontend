@@ -4,7 +4,7 @@ import { BASE_URL } from "@/src/lib/api";
 import { useAuth } from "@/src/state/auth";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -51,6 +51,8 @@ export default function RecomendacionesTab() {
   const [items, setItems] = useState<Reco[]>([]);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+
+
   const [selectedFilter, setSelectedFilter] =
     useState<SortBy>("distance");
 
@@ -66,6 +68,7 @@ export default function RecomendacionesTab() {
     const normalizedRating = (item.score || 0) / 5;
     return (normalizedDistance * 0.5) + (normalizedRating * 0.5);
   };
+  const router = useRouter();
 
   const sortedItems = useMemo(() => {
     const arr = [...items];
@@ -86,10 +89,10 @@ export default function RecomendacionesTab() {
   const getFilterLabel = () => {
     switch (selectedFilter) {
       case "distance": return "Más cercano";
-      case "rating":   return "Mejor puntuado";
-      case "popular":  return "Más opinado";
+      case "rating": return "Mejor puntuado";
+      case "popular": return "Más opinado";
       case "combined": return "Recomendado";
-      default:         return "Filtrar";
+      default: return "Filtrar";
     }
   };
 
@@ -222,16 +225,31 @@ export default function RecomendacionesTab() {
           </View>
 
           <View style={s.actions}>
+
+            {/* 🟢 Botón verde - Ir (redirige al mapa con ruta y bottomsheet) */}
+            <Link
+              href={{
+                pathname: "/mapa/mapa", // 👈 ruta absoluta, no relativa
+                params: { sitioId: String(item.id) }, // el ID real del sitio
+              }}
+              asChild
+            >
+              <TouchableOpacity style={[s.btn, s.btnMap]}>
+                <MaterialCommunityIcons name="navigation" size={16} color="#0000" />
+                <Text style={s.btnTextWhite}>Ir</Text>
+              </TouchableOpacity>
+            </Link>
+
+            {/* 🔹 Botón azul - Más información */}
             <Link href={`/sitios/${item.id}`} asChild>
               <TouchableOpacity style={[s.btn, s.btnPrimary]}>
                 <Text style={s.btnTextPrimary}>Más información</Text>
               </TouchableOpacity>
             </Link>
-            <TouchableOpacity style={[s.btn, s.btnMap]} onPress={() => openMaps(item.latitude, item.longitude)}>
-              <MaterialCommunityIcons name="navigation" size={16} color="#fff" />
-              <Text style={s.btnTextWhite}>Ir</Text>
-            </TouchableOpacity>
+
+            
           </View>
+
         </View>
       </View>
     );

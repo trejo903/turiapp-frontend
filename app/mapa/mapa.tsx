@@ -1,5 +1,5 @@
 // app/mapa/mapa.tsx
-import { addFavorito, getFavoritosIds, getSitiosByCategoria, removeFavorito, Sitio } from "@/src/lib/api";
+import { addFavorito, getFavoritosIds, getSitioById, getSitiosByCategoria, removeFavorito, Sitio } from "@/src/lib/api";
 import { ANARANJADOS_CIMA_KML, KMLRoute, parseKML } from '@/src/lib/kmlParser';
 import { useAuth } from "@/src/state/auth";
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -61,62 +61,25 @@ const SiteMarker = React.memo(function SiteMarker({
   );
 });
 
-//  Marker para el camión en la ruta
-const TruckMarker = React.memo(function TruckMarker({
-  coordinate,
-  onPress,
-}: {
-  coordinate: { latitude: number; longitude: number };
-  onPress: () => void;
-}) {
-  const [tracks, setTracks] = useState(true);
-  useEffect(() => {
-    const t = setTimeout(() => setTracks(false), 300);
-    return () => clearTimeout(t);
-  }, []);
-
-  return (
-    <Marker
-      coordinate={coordinate}
-      title="Ruta Anaranjados CIMA"
-      description="Camión en ruta"
-      anchor={{ x: 0.5, y: 0.5 }}
-      onPress={onPress}
-      tracksViewChanges={tracks}
-    >
-      <MaterialCommunityIcons name="truck" size={32} color="#F9A825" />
-    </Marker>
-  );
-}); 
-
 type TravelMode = 'DRIVING' | 'WALKING';
 
 export default function Mapa() {
-  const { user, token } = useAuth(); // user?.id
-const userId = user?.id ?? null;
+  const { user, token } = useAuth();
+  const userId = user?.id ?? null;
 
-useEffect(() => {
-  let mounted = true;
-  (async () => {
-    try {
-      if (!userId) return; // no logueado
-      const ids = await getFavoritosIds(userId, token!);
-      if (!mounted) return;
-      setFavIds(new Set(ids));
-    } catch (e) {
-      console.log('No se pudieron cargar favoritos', e);
-    }
-  })();
-  return () => { mounted = false; };
-}, [userId, token]);
+  // Obtener todos los parámetros de una sola vez
+  const { id, nombre, latitude, longitude, catId, sitioId } = useLocalSearchParams<{
+    id?: string;
+    nombre?: string;
+    latitude?: string;
+    longitude?: string;
+    catId?: string;
+    sitioId?: string; // Nuevo parámetro desde Recomendaciones
+  }>();
 
+  const [favIds, setFavIds] = useState<Set<number>>(new Set());
+  const isFav = useCallback((sitioId: number) => favIds.has(sitioId), [favIds]);
 
-
-
-const [favIds, setFavIds] = useState<Set<number>>(new Set()); // ids de sitios favoritos
-const isFav = useCallback((sitioId: number) => favIds.has(sitioId), [favIds]);
-
-  const { nombre, catId } = useLocalSearchParams<{ nombre?: string, catId: string }>();
   const categoriaId = Number(catId);
   const [sitios, setSitios] = useState<Sitio[]>([]);
   const [selectedSitio, setSelectedSitio] = useState<Sitio | null>(null);
@@ -127,7 +90,6 @@ const isFav = useCallback((sitioId: number) => favIds.has(sitioId), [favIds]);
 
   // Ruta KML y estado del camión
   const [kmlRoute, setKmlRoute] = useState<KMLRoute | null>(null);
-  const [truckPosition, setTruckPosition] = useState<{ latitude: number; longitude: number } | null>(null);
   const [showRoute, setShowRoute] = useState(true);
 
   // Modo de viaje para la ruta interna
@@ -136,7 +98,6 @@ const isFav = useCallback((sitioId: number) => favIds.has(sitioId), [favIds]);
   const mapRef = useRef<MapView>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
-  const truckAnimationRef = useRef<NodeJS.Timeout | null>(null);
 
   const snapPoints = useMemo(() => ['40%', '75%', '90%'], []);
   const initialRegion = useMemo(() => ({
@@ -145,85 +106,130 @@ const isFav = useCallback((sitioId: number) => favIds.has(sitioId), [favIds]);
     latitudeDelta: 0.05,
     longitudeDelta: 0.05
   }), []);
-const toggleFavorito = useCallback(async (sitio: Sitio) => {
-  if (!userId) {
-    Alert.alert('Favoritos', 'Inicia sesión para guardar lugares.');
-    return;
-  }
-  const id = Number(sitio.id);
-  const wasFav = favIds.has(id);
 
-  // Optimista
-  setFavIds(prev => {
-    const next = new Set(prev);
-    wasFav ? next.delete(id) : next.add(id);
-    return next;
-  });
+  // Cargar favoritos
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        if (!userId) return;
+        const ids = await getFavoritosIds(userId, token!);
+        if (!mounted) return;
+        setFavIds(new Set(ids));
+      } catch (e) {
+        console.log('No se pudieron cargar favoritos', e);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [userId, token]);
 
-  try {
-    if (wasFav) {
-      await removeFavorito(userId, id, token!);
-    } else {
-      await addFavorito(userId, id, token!);
+  // Cargar sitio específico cuando viene desde Recomendaciones
+  useEffect(() => {
+    const fetchSitioFromRecomendaciones = async () => {
+      try {
+        if (!sitioId) return;
+        console.log("📍 Cargando sitio desde Recomendaciones:", sitioId);
+
+        const sitio = await getSitioById(Number(sitioId));
+        if (sitio) {
+          console.log("✅ Sitio cargado desde BD:", sitio);
+          setSelectedSitio(sitio);
+
+          // Centrar el mapa en el sitio
+          if (mapRef.current && sitio.latitude && sitio.longitude) {
+            mapRef.current.animateToRegion(
+              {
+                latitude: Number(sitio.latitude),
+                longitude: Number(sitio.longitude),
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              },
+              800
+            );
+          }
+
+          // Mostrar el BottomSheet automáticamente
+          setTimeout(() => bottomSheetRef.current?.expand(), 500);
+        }
+      } catch (e) {
+        console.error("❌ Error cargando sitio desde BD:", e);
+      }
+    };
+
+    fetchSitioFromRecomendaciones();
+  }, [sitioId]);
+
+  // Manejar parámetros legacy (cuando viene con lat/long/name directo)
+  useEffect(() => {
+    if (latitude && longitude && mapRef.current && !sitioId) {
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
+
+      // Centrar el mapa
+      mapRef.current.animateToRegion({
+        latitude: lat,
+        longitude: lng,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }, 1000);
+
+      // Crear marcador temporal si no hay sitioId
+      if (nombre && !selectedSitio) {
+        //ese latoso probleeeeeem 
+        const tempSitio: Sitio = {
+          id: Number(id) || 0,
+          nombre: nombre,
+          latitude: lat,
+          longitude: lng,
+          estado: '',
+          municipio: '',
+          calle: '',
+          fraccionamiento: '',
+          categoria: undefined
+        };
+        setSelectedSitio(tempSitio);
+        setTimeout(() => bottomSheetRef.current?.expand(), 600);
+      }
     }
-  } catch (e) {
-    // Revertir si falla
+  }, [latitude, longitude, nombre, id, sitioId, selectedSitio]);
+
+  const toggleFavorito = useCallback(async (sitio: Sitio) => {
+    if (!userId) {
+      Alert.alert('Favoritos', 'Inicia sesión para guardar lugares.');
+      return;
+    }
+    const id = Number(sitio.id);
+    const wasFav = favIds.has(id);
+
+    // Optimista
     setFavIds(prev => {
       const next = new Set(prev);
-      wasFav ? next.add(id) : next.delete(id);
+      wasFav ? next.delete(id) : next.add(id);
       return next;
     });
-    Alert.alert('Favoritos', wasFav ? 'No se pudo quitar de favoritos.' : 'No se pudo guardar en favoritos.');
-  }
-}, [userId, token, favIds]);
+
+    try {
+      if (wasFav) {
+        await removeFavorito(userId, id, token!);
+      } else {
+        await addFavorito(userId, id, token!);
+      }
+    } catch (e) {
+      // Revertir si falla
+      setFavIds(prev => {
+        const next = new Set(prev);
+        wasFav ? next.add(id) : next.delete(id);
+        return next;
+      });
+      Alert.alert('Favoritos', wasFav ? 'No se pudo quitar de favoritos.' : 'No se pudo guardar en favoritos.');
+    }
+  }, [userId, token, favIds]);
 
   // Cargar ruta KML al montar el componente
   useEffect(() => {
     const route = parseKML(ANARANJADOS_CIMA_KML);
     setKmlRoute(route);
-    
-    // Posicionar camión en el primer punto de la ruta
-    if (route && route.coordinates.length > 0) {
-      const firstCoord = route.coordinates[0];
-      setTruckPosition({ latitude: firstCoord.latitude, longitude: firstCoord.longitude });
-    }
   }, []);
-
-  /** Animación del camión a lo largo de la ruta
-  useEffect(() => {
-    if (!kmlRoute || !showRoute) return;
-
-    let currentIndex = 0;
-    const coordinates = kmlRoute.coordinates;
-
-    const animateTruck = () => {
-      if (currentIndex < coordinates.length - 1) {
-        currentIndex++;
-        setTruckPosition({
-          latitude: coordinates[currentIndex].latitude,
-          longitude: coordinates[currentIndex].longitude
-        });
-        
-        truckAnimationRef.current = setTimeout(animateTruck, 2000); // Mover cada 2 segundos
-      } else {
-        // Reiniciar animación cuando llega al final
-        currentIndex = 0;
-        setTruckPosition({
-          latitude: coordinates[0].latitude,
-          longitude: coordinates[0].longitude
-        });
-        truckAnimationRef.current = setTimeout(animateTruck, 2000);
-      }
-    };
-
-    truckAnimationRef.current = setTimeout(animateTruck, 2000);
-
-    return () => {
-      if (truckAnimationRef.current) {
-        clearTimeout(truckAnimationRef.current);
-      }
-    };
-  }, [kmlRoute, showRoute]); */
 
   // Permisos + ubicación actual + watcher
   useEffect(() => {
@@ -268,14 +274,13 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
       mounted = false;
       locationSubRef.current?.remove();
       locationSubRef.current = null;
-      if (truckAnimationRef.current) {
-        clearTimeout(truckAnimationRef.current);
-      }
     };
   }, [kmlRoute]);
 
-  // Cargar sitios por categoría
+  // Cargar sitios por categoría (solo si no viene de Recomendaciones)
   useEffect(() => {
+    if (sitioId) return; // No cargar por categoría si viene de Recomendaciones
+
     let mounted = true;
     (async () => {
       try {
@@ -286,19 +291,17 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
 
         console.log('Sitios cargados con categoría:', data);
         if (data.length > 0 && mapRef.current) {
-          console.log('Primer sitio - tiene categoría?:', data[0].categoria);
-          console.log('Es reservable?:', data[0].categoria?.reservable);
           const coords = data.map(s => ({ latitude: s.latitude as number, longitude: s.longitude as number }));
           if (userLocation) coords.push(userLocation);
-          
+
           // Incluir coordenadas de la ruta KML si existe
           if (kmlRoute) {
             coords.push(...kmlRoute.coordinates.map(c => ({ latitude: c.latitude, longitude: c.longitude })));
           }
-          
-          mapRef.current.fitToCoordinates(coords, { 
-            edgePadding: { top: 80, right: 40, bottom: 40, left: 40 }, 
-            animated: true 
+
+          mapRef.current.fitToCoordinates(coords, {
+            edgePadding: { top: 80, right: 40, bottom: 40, left: 40 },
+            animated: true
           });
         }
       } catch {
@@ -308,41 +311,13 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
       }
     })();
     return () => { mounted = false };
-  }, [categoriaId, kmlRoute]);
+  }, [categoriaId, kmlRoute, sitioId, userLocation]);
 
   const handleMarkerPress = useCallback((sitio: Sitio) => {
     console.log(" Sitio seleccionado:", sitio);
-    console.log(" ID:", sitio.id);
-    console.log(" Nombre:", sitio.nombre);
-    console.log(" Teléfono:", sitio.telefono);
-    console.log(" Dirección:", `${sitio.calle}, ${sitio.fraccionamiento}`);
-    console.log(" Categoría:", sitio.categoria?.nombre);
-    console.log(" Reservable:", sitio.categoria?.reservable);
-
     setSelectedSitio(sitio);
     bottomSheetRef.current?.expand();
   }, []);
-
-  const handleTruckPress = useCallback(() => {
-    Alert.alert(
-      "Ruta Anaranjados CIMA",
-      "Ruta de camión en servicio. Toca para centrar en la ruta.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { 
-          text: "Centrar en ruta", 
-          onPress: () => {
-            if (kmlRoute && mapRef.current) {
-              mapRef.current.fitToCoordinates(
-                kmlRoute.coordinates.map(c => ({ latitude: c.latitude, longitude: c.longitude })),
-                { edgePadding: { top: 80, right: 40, bottom: 40, left: 40 }, animated: true }
-              );
-            }
-          }
-        }
-      ]
-    );
-  }, [kmlRoute]);
 
   const handleCallPress = (telefono: string) => {
     const phoneNumber = `tel:${telefono.replace(/\s/g, '')}`;
@@ -415,7 +390,7 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: nombre ? String(nombre) : "Mapa" }} />
-      
+
       <MapView
         customMapStyle={CLEAN_STYLE}
         style={styles.map}
@@ -426,7 +401,8 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
         showsUserLocation
         showsMyLocationButton
       >
-        {sitios.map(s => (
+        {/* Mostrar sitios solo si no viene de Recomendaciones */}
+        {!sitioId && sitios.map(s => (
           <SiteMarker key={s.id} sitio={s} onPress={handleMarkerPress} />
         ))}
 
@@ -436,14 +412,9 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
             coordinates={kmlRoute.coordinates}
             strokeColor="#F9A825"
             strokeWidth={4}
-            lineDashPattern={[1, 0]} // Línea sólida
+            lineDashPattern={[1, 0]}
           />
         )}
-
-        {/* Marcador del camión */}
-        {/* {showRoute && truckPosition && (
-          <TruckMarker coordinate={truckPosition} onPress={handleTruckPress} />
-        )} */}
 
         {userLocation && (
           <Marker coordinate={userLocation} title="Tú estás aquí" tracksViewChanges>
@@ -464,6 +435,19 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
             resetOnChange={false}
           />
         )}
+
+        {/* Marcador del sitio seleccionado */}
+        {selectedSitio && (
+          <Marker
+            coordinate={{
+              latitude: Number(selectedSitio.latitude),
+              longitude: Number(selectedSitio.longitude),
+            }}
+            title={selectedSitio.nombre}
+          >
+            <MaterialCommunityIcons name="map-marker" size={40} color="#0d0575ff" />
+          </Marker>
+        )}
       </MapView>
 
       {/* FABs */}
@@ -472,10 +456,10 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.fab, styles.fabRoute]} onPress={toggleRoute}>
-        <MaterialCommunityIcons 
-          name={showRoute ? "eye-off" : "eye"} 
-          size={22} 
-          color="#fff" 
+        <MaterialCommunityIcons
+          name={showRoute ? "eye-off" : "eye"}
+          size={22}
+          color="#fff"
         />
       </TouchableOpacity>
 
@@ -565,23 +549,21 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
                     <Text style={styles.dirText}>Abrir en mapas</Text>
                   </TouchableOpacity>
 
-                  {/* ✅ NUEVO: Guardar/Quitar favorito */}
-  <TouchableOpacity
-    style={[styles.favButton, isFav(selectedSitio.id) && styles.favButtonActive]}
-    onPress={() => toggleFavorito(selectedSitio)}
-  >
-    <MaterialCommunityIcons
-      name={isFav(selectedSitio.id) ? "heart" : "heart-outline"}
-      size={18}
-      color={isFav(selectedSitio.id) ? "#fff" : "#0d0575ff"}
-    />
-    <Text style={[styles.favText, isFav(selectedSitio.id) && styles.favTextActive]}>
-      {isFav(selectedSitio.id) ? "Quitar de favoritos" : "Guardar lugar"}
-    </Text>
-  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.favButton, isFav(selectedSitio.id) && styles.favButtonActive]}
+                    onPress={() => toggleFavorito(selectedSitio)}
+                  >
+                    <MaterialCommunityIcons
+                      name={isFav(selectedSitio.id) ? "heart" : "heart-outline"}
+                      size={18}
+                      color={isFav(selectedSitio.id) ? "#fff" : "#0d0575ff"}
+                    />
+                    <Text style={[styles.favText, isFav(selectedSitio.id) && styles.favTextActive]}>
+                      {isFav(selectedSitio.id) ? "Quitar de favoritos" : "Guardar lugar"}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
-                {/* En mapa.tsx, actualiza el Link del botón de reserva: */}
                 {selectedSitio.categoria?.reservable && (
                   <Link
                     href={{
@@ -622,6 +604,7 @@ const toggleFavorito = useCallback(async (sitio: Sitio) => {
   );
 }
 
+// ... (los estilos se mantienen igual)
 const styles = StyleSheet.create({
   container: { flex: 1, position: 'relative' },
   map: { width: "100%", height: "100%" },
@@ -728,40 +711,38 @@ const styles = StyleSheet.create({
   },
   dirText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   reservaButton: {
-  flex: 1,
-  backgroundColor: "#007AFF",
-  padding: 12,
-  borderRadius: 8,
-  alignItems: "center",
-  flexDirection: 'row',
-  justifyContent: 'center',
-  gap: 8,
-  marginTop: 8
-},
-reservaText: { 
-  color: "#fff", 
-  fontSize: 16, 
-  fontWeight: "600" 
-},
+    flex: 1,
+    backgroundColor: "#007AFF",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8
+  },
+  reservaText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600"
+  },
 
-favButton: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 8,
-  backgroundColor: '#fff',
-  borderWidth: 1,
-  borderColor: '#0d0575ff',
-  borderRadius: 8,
-  paddingVertical: 12,
-  marginTop: 8,
-},
-favButtonActive: {
-  backgroundColor: '#0d0575ff',
-  borderColor: '#0d0575ff',
-},
-favText: { color: '#0d0575ff', fontSize: 16, fontWeight: '600' },
-favTextActive: { color: '#fff' },
-
-
+  favButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#0d0575ff',
+    borderRadius: 8,
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  favButtonActive: {
+    backgroundColor: '#0d0575ff',
+    borderColor: '#0d0575ff',
+  },
+  favText: { color: '#0d0575ff', fontSize: 16, fontWeight: '600' },
+  favTextActive: { color: '#fff' },
 });
