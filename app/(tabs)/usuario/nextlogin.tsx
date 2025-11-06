@@ -122,6 +122,7 @@ export default function NextLogin() {
                     { flex: 1 },
                   ]}
                   placeholder="********"
+                  placeholderTextColor="#777"
                   autoCapitalize="none"
                   secureTextEntry={!show}
                   value={value}

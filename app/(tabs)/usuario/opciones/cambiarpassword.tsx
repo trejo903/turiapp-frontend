@@ -1,14 +1,19 @@
 // app/(tabs)/usuario/opciones/cambiarpassword.tsx
-import React, { useState } from "react";
-import {
-  View, Text, TextInput, Pressable, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, Alert
-} from "react-native";
-import { useForm, Controller } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuth } from "@/src/state/auth";
 import { BASE_URL } from "@/src/lib/api";
+import { useAuth } from "@/src/state/auth";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import {
+  Alert,
+  KeyboardAvoidingView, Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text, TextInput,
+  View
+} from "react-native";
+import { z } from "zod";
 
 const schema = z.object({
   currentPassword: z.string().min(8, "Mínimo 8 caracteres").max(72, "Máximo 72"),
@@ -87,6 +92,7 @@ export default function CambiarPassword() {
                 <TextInput
                   style={[styles.input, errors.currentPassword && styles.inputError, { flex: 1 }]}
                   placeholder="********"
+                  placeholderTextColor="#777"
                   autoCapitalize="none"
                   secureTextEntry={!showCurrent}
                   value={value}
@@ -114,6 +120,7 @@ export default function CambiarPassword() {
                 <TextInput
                   style={[styles.input, errors.newPassword && styles.inputError, { flex: 1 }]}
                   placeholder="********"
+                  placeholderTextColor="#777"
                   autoCapitalize="none"
                   secureTextEntry={!showNew}
                   value={value}
@@ -141,6 +148,7 @@ export default function CambiarPassword() {
                 <TextInput
                   style={[styles.input, errors.confirmPassword && styles.inputError, { flex: 1 }]}
                   placeholder="********"
+                  placeholderTextColor="#777" 
                   autoCapitalize="none"
                   secureTextEntry={!showConfirm}
                   value={value}

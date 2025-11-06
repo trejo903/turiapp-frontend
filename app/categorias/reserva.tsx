@@ -1,6 +1,8 @@
 // app/categorias/reserva.tsx
 import AuthRequiredModal from "@/src/components/AuthRequiredModal";
-import { BASE_URL } from "@/src/lib/api";
+import AppHeader from "@/src/components/common/appheader";
+import Loader from "@/src/components/common/loader";
+import { BASE_URL, getSitioById } from "@/src/lib/api";
 import { notificarConfirmacion, programarRecordatorio } from "@/src/lib/notificaciones";
 import { useAuth } from "@/src/state/auth";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -8,6 +10,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,19 +18,24 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ReservaScreen() {
   const { sitioId } = useLocalSearchParams<{ sitioId: string }>();
+  const insets = useSafeAreaInsets();
+
+  const [sitio, setSitio] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   const [fecha, setFecha] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  //  Personas
+  // Personas
   const [personas, setPersonas] = useState("");
   const [menores, setMenores] = useState("");
 
-  //  Precio total
+  // Precio total
   const [precioTotal, setPrecioTotal] = useState(0);
 
   // Datos personales
@@ -42,19 +50,33 @@ export default function ReservaScreen() {
 
   const [showModal, setShowModal] = useState(false);
 
-  // hard Calcular precio total
+  // 🟢 Cargar info del sitio
+  useEffect(() => {
+    if (!sitioId) return;
+    (async () => {
+      try {
+        const s = await getSitioById(Number(sitioId));
+        setSitio(s);
+      } catch (err) {
+        console.log("❌ Error al cargar sitio:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [sitioId]);
+
+  // 🧮 Calcular precio total
   useEffect(() => {
     const baseRestaurante = 180; // Precio por persona
-    const transporteExtra = 50; // siempre incluido
-
+    const transporteExtra = 50; // fijo
     const total =
-      (Number(personas) * baseRestaurante + (Number(menores) || 0) * baseRestaurante * 0.6) +
+      (Number(personas) * baseRestaurante +
+        (Number(menores) || 0) * baseRestaurante * 0.6) +
       transporteExtra;
-
     setPrecioTotal(total);
   }, [personas, menores]);
 
-  // Manejar reserva
+  // 🟠 Manejar reserva
   const handleReserva = async () => {
     if (!isLoggedIn) {
       setShowModal(true);
@@ -73,14 +95,14 @@ export default function ReservaScreen() {
       nombre: nombre.trim(),
       telefono: telefono.trim(),
       email: email.trim(),
-      transporte: true, // siempre incluido
+      transporte: true,
       fecha,
       personas: Number(personas),
       menores: menores ? Number(menores) : 0,
-      precio_total: precioTotal, // campo nuevo
+      precio_total: precioTotal,
     };
 
-    console.log("Datos enviados al backend:", reservaData);
+    console.log("📦 Datos enviados al backend:", reservaData);
 
     try {
       const response = await fetch(`${BASE_URL}/reservas`, {
@@ -101,14 +123,8 @@ export default function ReservaScreen() {
       const result = await response.json();
       console.log("✅ Reserva guardada correctamente:", result);
 
-      await notificarConfirmacion(
-        result.sitioNombre ?? "tu reserva",
-        new Date(reservaData.fecha)
-      );
-      await programarRecordatorio(
-        result.sitioNombre ?? "tu reserva",
-        new Date(reservaData.fecha)
-      );
+      await notificarConfirmacion(result.sitioNombre ?? "tu reserva", new Date(fecha));
+      await programarRecordatorio(result.sitioNombre ?? "tu reserva", new Date(fecha));
 
       Alert.alert(
         "Reserva confirmada",
@@ -121,9 +137,20 @@ export default function ReservaScreen() {
     }
   };
 
+  // 🔄 Loader y errores
+  if (loading) return <Loader message="Cargando información del sitio..." />;
+  if (!sitio) return <Text style={{ padding: 16 }}>No se encontró el sitio</Text>;
+
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+      <AppHeader title={`${sitio.nombre}`} onBack={() => router.back()} />
+
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 32,
+        }}
+      >
         <Text style={styles.title}>Reservar Mesa</Text>
 
         {/* Información personal */}
@@ -131,12 +158,14 @@ export default function ReservaScreen() {
         <TextInput
           style={styles.input}
           placeholder="Nombre completo *"
+          placeholderTextColor="#777"
           value={nombre}
           onChangeText={setNombre}
         />
         <TextInput
           style={styles.input}
           placeholder="Teléfono *"
+          placeholderTextColor="#777"
           value={telefono}
           onChangeText={setTelefono}
           keyboardType="phone-pad"
@@ -144,20 +173,20 @@ export default function ReservaScreen() {
         <TextInput
           style={styles.input}
           placeholder="Email (opcional)"
+          placeholderTextColor="#777"
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
         />
 
-        {/*  Fecha y hora */}
+        {/* Fecha y hora */}
         <Text style={styles.sectionTitle}>Fecha y Hora</Text>
         <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
           <Text>Fecha: {fecha.toLocaleDateString()}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.input} onPress={() => setShowTimePicker(true)}>
           <Text>
-            Hora:{" "}
-            {fecha.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            Hora: {fecha.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </Text>
         </TouchableOpacity>
 
@@ -165,7 +194,7 @@ export default function ReservaScreen() {
           <DateTimePicker
             value={fecha}
             mode={showDatePicker ? "date" : "time"}
-            display="default"
+            display={Platform.OS === "ios" ? "spinner" : "default"}
             onChange={(event, selectedDate) => {
               setShowDatePicker(false);
               setShowTimePicker(false);
@@ -174,11 +203,12 @@ export default function ReservaScreen() {
           />
         )}
 
-        {/*  Personas */}
+        {/* Personas */}
         <Text style={styles.sectionTitle}>Número de Personas</Text>
         <TextInput
           style={styles.input}
           placeholder="Total de personas *"
+          placeholderTextColor="#777"
           value={personas}
           onChangeText={setPersonas}
           keyboardType="numeric"
@@ -186,21 +216,20 @@ export default function ReservaScreen() {
         <TextInput
           style={styles.input}
           placeholder="Menores de edad"
+          placeholderTextColor="#777"
           value={menores}
           onChangeText={setMenores}
           keyboardType="numeric"
         />
 
-        {/*  Precio total */}
+        {/* Precio total */}
         <View style={styles.precioContainer}>
           <Text style={styles.precioTitulo}>Resumen de pago</Text>
-          <Text style={styles.precioDetalle}>
-            ${precioTotal.toFixed(2)} MXN total
-          </Text>
-          <Text style={styles.precioExtra}>Incluye transporte 🚗</Text>
+          <Text style={styles.precioDetalle}>${precioTotal.toFixed(2)} MXN total</Text>
+          <Text style={styles.precioExtra}>Incluye transporte</Text>
         </View>
 
-        {/*  Botón */}
+        {/* Botón */}
         <TouchableOpacity style={styles.button} onPress={handleReserva}>
           <Text style={styles.buttonText}>Confirmar Reserva</Text>
         </TouchableOpacity>
@@ -212,8 +241,7 @@ export default function ReservaScreen() {
         sitioId={`/categorias/reserva?sitioId=${sitioId}`}
         context="restaurante"
       />
-
-    </View>
+    </SafeAreaView>
   );
 }
 

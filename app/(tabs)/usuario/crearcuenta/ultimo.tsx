@@ -1,11 +1,10 @@
 // app/(tabs)/usuario/crearcuenta/ultimo.tsx
-import React from "react";
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
-import { useForm, Controller } from "react-hook-form";
-import { z } from "zod";
+import { BASE_URL } from "@/src/lib/api";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { BASE_URL } from "@/src/lib/api";
+import { Controller, useForm } from "react-hook-form";
+import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { z } from "zod";
 
 
 // Teléfono MX: 10 dígitos (ej. 6181234567)
@@ -111,6 +110,7 @@ const fullName = [nombre, apellido].filter(Boolean).join(" ");
                 fontSize: 16,
               }}
               placeholder="6181234567"
+              placeholderTextColor="#777"
               keyboardType="phone-pad"
               value={value}
               onChangeText={(t) => {

@@ -4,7 +4,6 @@ import { cancelarRecordatorio, notificarConfirmacion, programarRecordatorio } fr
 export const BASE_URL = "http://192.168.1.3:5001/api";
 
 
-//prueba
 
 export async function apiFetch(path: string,options: RequestInit = {},token?: string | null) {
   const headers = new Headers(options.headers || {});

@@ -92,6 +92,7 @@ export default function InformacionScreen() {
                 fontSize: 16,
               }}
               placeholder="Juan"
+              placeholderTextColor="#777"
               value={value}
               onChangeText={(t) => onChange(t.replace(/\s{2,}/g, " "))}
               onBlur={onBlur}
@@ -121,6 +122,7 @@ export default function InformacionScreen() {
                 fontSize: 16,
               }}
               placeholder="Pérez"
+              placeholderTextColor="#777"
               value={value}
               onChangeText={(t) => onChange(t.replace(/\s{2,}/g, " "))}
               onBlur={onBlur}

@@ -11,14 +11,15 @@ import {
   Alert,
   FlatList,
   Image,
-  Linking,
-  Platform,
   RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
+
+// Variable de entorno que apunta a la API Key de Google Maps
+const MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 export type SortBy = 'distance' | 'rating' | 'popular' | 'combined';
 
@@ -51,25 +52,24 @@ export default function RecomendacionesTab() {
   const [items, setItems] = useState<Reco[]>([]);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<SortBy>("distance");
 
-
-  const [selectedFilter, setSelectedFilter] =
-    useState<SortBy>("distance");
+  const router = useRouter();
 
   const subtitle = useMemo(() => {
     if (!userLocation) return "Cerca de ti";
     return `Cerca de ti (${userLocation.latitude.toFixed(3)}, ${userLocation.longitude.toFixed(3)})`;
   }, [userLocation]);
 
-  // Orden local (además de pedirlo al backend)
+  // --- Ponderación local combinada (distancia + rating)
   const calculateCombinedScore = (item: Reco) => {
     const maxDistance = Math.max(...items.map(i => i.distancekm || 0));
     const normalizedDistance = maxDistance > 0 ? 1 - ((item.distancekm || 0) / maxDistance) : 0;
     const normalizedRating = (item.score || 0) / 5;
     return (normalizedDistance * 0.5) + (normalizedRating * 0.5);
   };
-  const router = useRouter();
 
+  // --- Ordenamiento local ---
   const sortedItems = useMemo(() => {
     const arr = [...items];
     switch (selectedFilter) {
@@ -96,6 +96,12 @@ export default function RecomendacionesTab() {
     }
   };
 
+  /**
+   *  Abre Google Maps externo.
+   * Ya no se utiliza porque la app tiene integración interna con Google Maps (API Key).
+   * Se conserva solo para no borrarlo.
+   */
+  /*
   const openMaps = useCallback(
     async (lat: number, lng: number) => {
       const origin = userLocation ? `${userLocation.latitude},${userLocation.longitude}` : null;
@@ -117,13 +123,14 @@ export default function RecomendacionesTab() {
     },
     [userLocation]
   );
+  */
 
+  // --- Fetch recomendaciones desde backend ---
   const fetchRecs = useCallback(async () => {
     if (!userLocation) return;
     try {
       setLoading(true);
 
-      // 👇 ahora enviamos sortBy para que el backend ordene
       const url =
         `${BASE_URL}/recs/nearby` +
         `?lat=${userLocation.latitude}` +
@@ -135,7 +142,6 @@ export default function RecomendacionesTab() {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      // El backend responde { sortByUsed, total, data: [...] }
       const payload: { sortByUsed: string; total: number; data: any[] } = await res.json();
 
       const mapped: Reco[] = (payload.data ?? []).map((r) => ({
@@ -162,7 +168,7 @@ export default function RecomendacionesTab() {
     }
   }, [userLocation, userId, selectedFilter]);
 
-  // Permisos + ubicación
+  // --- Permiso + ubicación del usuario ---
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -176,7 +182,7 @@ export default function RecomendacionesTab() {
     })();
   }, []);
 
-  // Refetch cuando haya ubicación o cambie el filtro
+  // --- Refetch cuando haya ubicación o cambie el filtro ---
   useEffect(() => {
     if (userLocation) fetchRecs();
   }, [userLocation, selectedFilter, fetchRecs]);
@@ -186,6 +192,7 @@ export default function RecomendacionesTab() {
     fetchRecs();
   };
 
+  // --- Render de cada card ---
   const renderItem = ({ item }: { item: Reco }) => {
     const uri = formatImageUrl(item.img) ?? undefined;
     return (
@@ -197,12 +204,15 @@ export default function RecomendacionesTab() {
             <MaterialCommunityIcons name="image-off-outline" size={36} color="#888" />
           </View>
         )}
+
         <View style={s.cardBody}>
           <Text style={s.title}>{item.nombre}</Text>
           <Text style={s.meta}>
             {item.municipio}, {item.estado}
             {item.cp ? `, C.P. ${item.cp}` : ""}
           </Text>
+
+          {/* Badges de info */}
           <View style={s.badges}>
             {typeof item.distancekm === "number" && (
               <View style={s.badge}>
@@ -224,36 +234,33 @@ export default function RecomendacionesTab() {
             )}
           </View>
 
+          {/* Acciones */}
           <View style={s.actions}>
-
-            {/* 🟢 Botón verde - Ir (redirige al mapa con ruta y bottomsheet) */}
-            <Link
-              href={{
-                pathname: "/mapa/mapa", // 👈 ruta absoluta, no relativa
-                params: { sitioId: String(item.id) }, // el ID real del sitio
-              }}
-              asChild
+            {/* Ir al mapa interno */}
+            <TouchableOpacity
+              style={[s.btn, s.btnMap]}
+              onPress={() =>
+                router.push({
+                  pathname: "/mapa/mapa",
+                  params: { sitioId: String(item.id) },
+                })
+              }
             >
-              <TouchableOpacity style={[s.btn, s.btnMap]}>
-                <MaterialCommunityIcons name="navigation" size={16} color="#0000" />
-                <Text style={s.btnTextWhite}>Ir</Text>
-              </TouchableOpacity>
-            </Link>
+              <Text style={s.btnTextWhite}>Ir</Text>
+            </TouchableOpacity>
 
-            {/* 🔹 Botón azul - Más información */}
+            {/* Más información */}
             <Link href={`/sitios/${item.id}`} asChild>
               <TouchableOpacity style={[s.btn, s.btnPrimary]}>
-                <Text style={s.btnTextPrimary}>Más información</Text>
+                <Text style={s.btnTextWhite}>Más información</Text>
               </TouchableOpacity>
             </Link>
-
-            
           </View>
-
         </View>
       </View>
     );
   };
+
 
   return (
     <View style={s.container}>
@@ -275,7 +282,7 @@ export default function RecomendacionesTab() {
         </View>
       ) : (
         <FlatList
-          data={sortedItems}  // 👈 usa la lista ordenada
+          data={sortedItems}
           keyExtractor={(it) => String(it.id)}
           renderItem={renderItem}
           contentContainerStyle={{ padding: 12, gap: 12 }}
@@ -318,11 +325,9 @@ const s = StyleSheet.create({
     borderColor: "#e0e0e0",
   },
   filterButtonText: { fontSize: 14, fontWeight: "600", color: "#0d0575ff" },
-
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
   loadingTxt: { color: "#666" },
   empty: { textAlign: "center", color: "#777", marginTop: 40 },
-
   card: { backgroundColor: "#fff", borderRadius: 12, overflow: "hidden", elevation: 2, shadowOpacity: 0.08 },
   img: { width: "100%", height: 140 },
   imgPlaceholder: {
@@ -331,13 +336,27 @@ const s = StyleSheet.create({
   cardBody: { padding: 12, gap: 8 },
   title: { fontSize: 16, fontWeight: "700", color: "#111" },
   meta: { fontSize: 13, color: "#555" },
-
   badges: { flexDirection: "row", gap: 10, marginTop: 2 },
   badge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#f1f5ff", paddingVertical: 4, paddingHorizontal: 8, borderRadius: 9999 },
   badgeText: { fontSize: 12, color: "#333" },
-
-  actions: { flexDirection: "row", gap: 10, marginTop: 6 },
-  btn: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
+  actions: { 
+    flexDirection: "row", 
+    gap: 10, 
+    marginTop: 10,
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+  btn: { 
+    flex: 1, 
+    minWidth: 120,
+    paddingVertical: 10,
+    borderRadius: 8, 
+    alignItems: "center", 
+    justifyContent: "center", 
+    flexDirection: "row", 
+    gap: 8 
+  },
   btnPrimary: { backgroundColor: "#0d0575ff" },
   btnMap: { backgroundColor: "#4CAF50" },
   btnTextPrimary: { color: "#fff", fontWeight: "700" },

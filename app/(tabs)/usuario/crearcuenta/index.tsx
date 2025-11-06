@@ -68,6 +68,7 @@ export default function CrearCuenta(){
                             <TextInput
                                 style={[styles.input, errors.email && styles.inputError]}
                                 placeholder='correo@gmail.com'
+                                placeholderTextColor="#777"
                                 keyboardType='email-address'
                                 autoCapitalize='none'
                                 autoCorrect={false}

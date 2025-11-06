@@ -1,11 +1,11 @@
-import { useRoute } from '@react-navigation/native'
-import { useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
-import { zodResolver } from "@hookform/resolvers/zod";
-import {z} from 'zod'
-import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useLocalSearchParams,useRouter } from "expo-router";
 import { BASE_URL } from '@/src/lib/api';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useRoute } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { z } from 'zod';
 
 
 
@@ -94,6 +94,7 @@ export default function PasswordScreen(){
                 onChangeText={(t) => onChange(t.trimStart())}
                 onBlur={onBlur}
                 placeholder="********"
+                placeholderTextColor="#777"
                 secureTextEntry={!showPass}
                 autoCapitalize="none"
                 textContentType="newPassword"
@@ -134,6 +135,7 @@ export default function PasswordScreen(){
                 onChangeText={(t) => onChange(t.trimStart())}
                 onBlur={onBlur}
                 placeholder="********"
+                placeholderTextColor="#777"
                 secureTextEntry={!showConfirm}
                 autoCapitalize="none"
                 textContentType="newPassword"

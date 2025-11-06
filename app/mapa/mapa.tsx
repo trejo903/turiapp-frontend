@@ -99,7 +99,7 @@ export default function Mapa() {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
 
-  const snapPoints = useMemo(() => ['40%', '75%', '90%'], []);
+  const snapPoints = useMemo(() => ['40%', '75%', '80%'], []);
   const initialRegion = useMemo(() => ({
     latitude: 24.022,
     longitude: -104.653,
@@ -123,7 +123,7 @@ export default function Mapa() {
     return () => { mounted = false; };
   }, [userId, token]);
 
-  // Cargar sitio específico cuando viene desde Recomendaciones
+  // Cargar sitio específico cuando viene desde Recomendaciones 
   useEffect(() => {
     const fetchSitioFromRecomendaciones = async () => {
       try {
@@ -133,7 +133,7 @@ export default function Mapa() {
         const sitio = await getSitioById(Number(sitioId));
         if (sitio) {
           console.log("✅ Sitio cargado desde BD:", sitio);
-          setSelectedSitio(sitio);
+          openSheet(sitio); // 👈 ahora usamos la función segura
 
           // Centrar el mapa en el sitio
           if (mapRef.current && sitio.latitude && sitio.longitude) {
@@ -147,9 +147,6 @@ export default function Mapa() {
               800
             );
           }
-
-          // Mostrar el BottomSheet automáticamente
-          setTimeout(() => bottomSheetRef.current?.expand(), 500);
         }
       } catch (e) {
         console.error("❌ Error cargando sitio desde BD:", e);
@@ -158,6 +155,7 @@ export default function Mapa() {
 
     fetchSitioFromRecomendaciones();
   }, [sitioId]);
+
 
   // Manejar parámetros legacy (cuando viene con lat/long/name directo)
   useEffect(() => {
@@ -314,10 +312,11 @@ export default function Mapa() {
   }, [categoriaId, kmlRoute, sitioId, userLocation]);
 
   const handleMarkerPress = useCallback((sitio: Sitio) => {
-    console.log(" Sitio seleccionado:", sitio);
+    console.log("📍 Pin presionado:", sitio.nombre);
     setSelectedSitio(sitio);
-    bottomSheetRef.current?.expand();
+    setTimeout(() => bottomSheetRef.current?.expand(), 150);
   }, []);
+
 
   const handleCallPress = (telefono: string) => {
     const phoneNumber = `tel:${telefono.replace(/\s/g, '')}`;
@@ -387,6 +386,18 @@ export default function Mapa() {
     }
   };
 
+  const openSheet = (sitio: Sitio) => {
+  setSelectedSitio(sitio);
+  // Espera un poco para evitar que se bloquee el re-render
+  setTimeout(() => bottomSheetRef.current?.expand(), 200);
+};
+
+const closeSheet = () => {
+  bottomSheetRef.current?.close();
+  //setSelectedSitio(null);
+};
+
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: nombre ? String(nombre) : "Mapa" }} />
@@ -428,7 +439,7 @@ export default function Mapa() {
             origin={userLocation}
             destination={{ latitude: Number(selectedSitio.latitude), longitude: Number(selectedSitio.longitude) }}
             mode={travelMode}
-            apikey={process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? ""}
+            apikey={process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY!}
             strokeWidth={4}
             onReady={onDirectionsReady}
             onError={(e) => console.log('Directions error', e)}
@@ -444,6 +455,7 @@ export default function Mapa() {
               longitude: Number(selectedSitio.longitude),
             }}
             title={selectedSitio.nombre}
+            onPress={() => handleMarkerPress(selectedSitio)} // 👈 importante
           >
             <MaterialCommunityIcons name="map-marker" size={40} color="#0d0575ff" />
           </Marker>
@@ -469,8 +481,10 @@ export default function Mapa() {
         snapPoints={snapPoints}
         index={-1}
         enablePanDownToClose
+        onClose={closeSheet} // limpia el estado al cerrarse
         backgroundStyle={styles.bottomSheetBackground}
       >
+
         <BottomSheetView style={styles.bottomSheetContent}>
           {selectedSitio ? (
             <View style={styles.contactCard}>
@@ -544,10 +558,14 @@ export default function Mapa() {
                     </TouchableOpacity>
                   </Link>
 
+                  {/*
                   <TouchableOpacity style={styles.dirButton} onPress={() => handleDirectionsPressExternal(selectedSitio)}>
                     <MaterialCommunityIcons name="navigation" size={18} color="#fff" />
                     <Text style={styles.dirText}>Abrir en mapas</Text>
                   </TouchableOpacity>
+                  */}
+                  
+
 
                   <TouchableOpacity
                     style={[styles.favButton, isFav(selectedSitio.id) && styles.favButtonActive]}
@@ -689,16 +707,22 @@ const styles = StyleSheet.create({
   modeText: { color: '#0d0575ff', fontWeight: '600' },
   modeTextActive: { color: '#fff' },
 
-  actionsRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  actionsRow: { 
+    flexDirection: 'row', 
+    gap: 10, 
+    marginTop: 8 },
   moreInfoButton: {
     flex: 1,
     backgroundColor: "#0d0575ff",
-    padding: 12,
+    paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
+    justifyContent: "center"
   },
-  moreInfoText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-
+  moreInfoText: { 
+    color: "#fff", 
+    fontSize: 16, 
+    fontWeight: "600" },
   dirButton: {
     flex: 1,
     backgroundColor: "#4CAF50",
@@ -728,6 +752,7 @@ const styles = StyleSheet.create({
   },
 
   favButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -737,7 +762,7 @@ const styles = StyleSheet.create({
     borderColor: '#0d0575ff',
     borderRadius: 8,
     paddingVertical: 12,
-    marginTop: 8,
+    //marginTop: 8,
   },
   favButtonActive: {
     backgroundColor: '#0d0575ff',

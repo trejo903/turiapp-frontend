@@ -1,22 +1,21 @@
 // app/(tabs)/usuario/opciones/editarperfil.tsx
-import React from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Alert,
-} from "react-native";
-import { useForm, Controller } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useLocalSearchParams, useRouter } from "expo-router";
 import { BASE_URL } from "@/src/lib/api";
 import { useAuth } from "@/src/state/auth";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { Controller, useForm } from "react-hook-form";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { z } from "zod";
 
 const schema = z.object({
   nombre: z.string().min(1, "Requerido").max(80, "Máximo 80"),
@@ -126,6 +125,7 @@ export default function EditarPerfil() {
               <TextInput
                 style={[styles.input, errors.nombre && styles.inputError]}
                 placeholder="Tu nombre"
+                placeholderTextColor="#777"
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
@@ -148,6 +148,7 @@ export default function EditarPerfil() {
               <TextInput
                 style={[styles.input, errors.apellido && styles.inputError]}
                 placeholder="Tu apellido"
+                placeholderTextColor="#777"
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
@@ -170,6 +171,7 @@ export default function EditarPerfil() {
               <TextInput
                 style={[styles.input, errors.correo && styles.inputError]}
                 placeholder="email@dominio.com"
+                placeholderTextColor="#777"
                 autoCapitalize="none"
                 keyboardType="email-address"
                 value={value}
