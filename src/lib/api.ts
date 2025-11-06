@@ -1,16 +1,12 @@
 import { cancelarRecordatorio, notificarConfirmacion, programarRecordatorio } from "@/src/lib/notificaciones";
 
 
-export const BASE_URL = "https://turiapp-backend.onrender.com/api";
+export const BASE_URL = "http://192.168.1.3:5001/api";
 
 
 //prueba
 
-export async function apiFetch(
-  path: string,
-  options: RequestInit = {},
-  token?: string | null
-) {
+export async function apiFetch(path: string,options: RequestInit = {},token?: string | null) {
   const headers = new Headers(options.headers || {});
   headers.set("Accept", "application/json");
   if (!headers.has("Content-Type") && options.body) {
