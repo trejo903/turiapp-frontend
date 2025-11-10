@@ -525,13 +525,7 @@ const closeSheet = () => {
                 </View>
               </View>
 
-              {/* Estado/Municipio/CP */}
-              <View style={styles.locationInfo}>
-                <View style={styles.locationItem}><Text style={styles.locationLabel}>Estado:</Text><Text style={styles.locationValue}>{selectedSitio.estado}</Text></View>
-                <View style={styles.locationItem}><Text style={styles.locationLabel}>Municipio:</Text><Text style={styles.locationValue}>{selectedSitio.municipio}</Text></View>
-                {selectedSitio.cp && (<View style={styles.locationItem}><Text style={styles.locationLabel}>C.P.:</Text><Text style={styles.locationValue}>{selectedSitio.cp}</Text></View>)}
-              </View>
-
+      
               {/* Acciones */}
               <View style={styles.actionsRowWrap}>
                 <View style={styles.modeRow}>
