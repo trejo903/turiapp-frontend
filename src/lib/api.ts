@@ -250,3 +250,10 @@ export async function cancelarReservaFrontend(reserva: ReservaData & { id: numbe
   await fetch(`${BASE_URL}/reservas/${reserva.id}`, { method: "DELETE" });
   await cancelarRecordatorio(reserva.notificationId, reserva.sitioNombre);
 }
+
+
+export async function getRegiones() {
+  const res = await fetch(`${BASE_URL}/sitios/regiones`);
+  if (!res.ok) throw new Error("No se pudieron cargar las regiones");
+  return res.json(); // devuelve RegionApi[]
+}
