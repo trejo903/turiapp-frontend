@@ -1,4 +1,4 @@
-// app/categorias/reserva.tsx
+// app/categorias/reserva-hotel.tsx
 import AuthRequiredModal from "@/src/components/AuthRequiredModal";
 import AppHeader from "@/src/components/common/appheader";
 import Loader from "@/src/components/common/loader";
@@ -20,19 +20,21 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-export default function ReservaScreen() {
+export default function ReservaHotelScreen() {
   const { sitioId } = useLocalSearchParams<{ sitioId: string }>();
   const insets = useSafeAreaInsets();
 
   const [sitio, setSitio] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const [fecha, setFecha] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  // Fechas
+  const [fechaEntrada, setFechaEntrada] = useState(new Date());
+  const [fechaSalida, setFechaSalida] = useState(new Date(Date.now() + 86400000));
+  const [showEntradaPicker, setShowEntradaPicker] = useState(false);
+  const [showSalidaPicker, setShowSalidaPicker] = useState(false);
 
-  // Personas
-  const [personas, setPersonas] = useState("");
+  // Huéspedes
+  const [adultos, setAdultos] = useState("");
   const [menores, setMenores] = useState("");
 
   // Precio total
@@ -50,7 +52,7 @@ export default function ReservaScreen() {
 
   const [showModal, setShowModal] = useState(false);
 
-  // 🟢 Cargar info del sitio
+  // 🟢 Cargar datos del sitio
   useEffect(() => {
     if (!sitioId) return;
     (async () => {
@@ -65,16 +67,27 @@ export default function ReservaScreen() {
     })();
   }, [sitioId]);
 
-  // 🧮 Calcular precio total
+  // 🧮 Calcular noches
+  const calcularNoches = () => {
+    const diff = fechaSalida.getTime() - fechaEntrada.getTime();
+    return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  };
+
+  // 💰 Calcular precio total
   useEffect(() => {
-    const baseRestaurante = 180; // Precio por persona
-    const transporteExtra = 50; // fijo
+    const noches = calcularNoches();
+    const baseHotelPorNoche = 350;
+    const precioMenor = baseHotelPorNoche * 0.6;
+    const transporteExtra = 50;
+
     const total =
-      (Number(personas) * baseRestaurante +
-        (Number(menores) || 0) * baseRestaurante * 0.6) +
+      (Number(adultos) * baseHotelPorNoche +
+        Number(menores || 0) * precioMenor) *
+        noches +
       transporteExtra;
+
     setPrecioTotal(total);
-  }, [personas, menores]);
+  }, [adultos, menores, fechaEntrada, fechaSalida]);
 
   // 🟠 Manejar reserva
   const handleReserva = async () => {
@@ -83,24 +96,31 @@ export default function ReservaScreen() {
       return;
     }
 
-    if (!nombre.trim() || !telefono.trim() || !personas) {
+    if (!nombre.trim() || !telefono.trim() || !adultos) {
       Alert.alert("Error", "Completa los campos obligatorios");
       return;
     }
 
+    if (fechaEntrada >= fechaSalida) {
+      Alert.alert("Error", "La fecha de salida debe ser posterior a la de entrada");
+      return;
+    }
+
     const reservaData: any = {
-      tipo: "restaurante",
+      tipo: "hotel",
       usuario_id: Number(userId),
       sitio_id: Number(sitioId),
       nombre: nombre.trim(),
       telefono: telefono.trim(),
-      email: email.trim(),
       transporte: true,
-      fecha,
-      personas: Number(personas),
+      fecha_entrada: fechaEntrada,
+      fecha_salida: fechaSalida,
+      adultos: Number(adultos),
       menores: menores ? Number(menores) : 0,
       precio_total: precioTotal,
     };
+
+    if (email.trim().length > 0) reservaData.email = email.trim();
 
     console.log("📦 Datos enviados al backend:", reservaData);
 
@@ -123,12 +143,18 @@ export default function ReservaScreen() {
       const result = await response.json();
       console.log("✅ Reserva guardada correctamente:", result);
 
-      await notificarConfirmacion(result.sitioNombre ?? "tu reserva", new Date(fecha));
-      await programarRecordatorio(result.sitioNombre ?? "tu reserva", new Date(fecha));
+      await notificarConfirmacion(
+        result.sitioNombre ?? "tu reserva",
+        new Date(reservaData.fecha_entrada)
+      );
+      await programarRecordatorio(
+        result.sitioNombre ?? "tu reserva",
+        new Date(reservaData.fecha_entrada)
+      );
 
       Alert.alert(
         "Reserva confirmada",
-        "Tu mesa se ha reservado correctamente. Cancelaciones disponibles hasta 48h antes del día."
+        "Tu reserva se ha guardado correctamente. Cancelaciones disponibles hasta 48h antes del día."
       );
       router.back();
     } catch (error) {
@@ -137,23 +163,20 @@ export default function ReservaScreen() {
     }
   };
 
-  // 🔄 Loader y errores
+  // 🔄 Loader
   if (loading) return <Loader message="Cargando información del sitio..." />;
   if (!sitio) return <Text style={{ padding: 16 }}>No se encontró el sitio</Text>;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <AppHeader title={`${sitio.nombre}`} onBack={() => router.back()} />
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={{
-          paddingBottom: insets.bottom + 32,
-        }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
       >
-        <Text style={styles.title}>Reservar Mesa</Text>
+        <Text style={styles.title}>Reservar Hotel</Text>
 
-        {/* Información personal */}
+        {/* Datos personales */}
         <Text style={styles.sectionTitle}>Información Personal</Text>
         <TextInput
           style={styles.input}
@@ -179,43 +202,55 @@ export default function ReservaScreen() {
           keyboardType="email-address"
         />
 
-        {/* Fecha y hora */}
-        <Text style={styles.sectionTitle}>Fecha y Hora</Text>
-        <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
-          <Text>Fecha: {fecha.toLocaleDateString()}</Text>
+        {/* Fechas */}
+        <Text style={styles.sectionTitle}>Fechas de Estadía</Text>
+        <Text style={styles.nochesText}>
+          {calcularNoches()} {calcularNoches() === 1 ? "noche" : "noches"}
+        </Text>
+
+        <TouchableOpacity style={styles.input} onPress={() => setShowEntradaPicker(true)}>
+          <Text>Check-in: {fechaEntrada.toLocaleDateString()}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.input} onPress={() => setShowTimePicker(true)}>
-          <Text>
-            Hora: {fecha.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </Text>
+        <TouchableOpacity style={styles.input} onPress={() => setShowSalidaPicker(true)}>
+          <Text>Check-out: {fechaSalida.toLocaleDateString()}</Text>
         </TouchableOpacity>
 
-        {(showDatePicker || showTimePicker) && (
+        {(showEntradaPicker || showSalidaPicker) && (
           <DateTimePicker
-            value={fecha}
-            mode={showDatePicker ? "date" : "time"}
+            value={showEntradaPicker ? fechaEntrada : fechaSalida}
+            mode="date"
             display={Platform.OS === "ios" ? "spinner" : "default"}
+            minimumDate={showEntradaPicker ? new Date() : fechaEntrada}
             onChange={(event, selectedDate) => {
-              setShowDatePicker(false);
-              setShowTimePicker(false);
-              if (selectedDate) setFecha(selectedDate);
+              setShowEntradaPicker(false);
+              setShowSalidaPicker(false);
+              if (selectedDate) {
+                if (showEntradaPicker) {
+                  setFechaEntrada(selectedDate);
+                  if (selectedDate >= fechaSalida) {
+                    setFechaSalida(new Date(selectedDate.getTime() + 86400000));
+                  }
+                } else {
+                  setFechaSalida(selectedDate);
+                }
+              }
             }}
           />
         )}
 
-        {/* Personas */}
-        <Text style={styles.sectionTitle}>Número de Personas</Text>
+        {/* Huéspedes */}
+        <Text style={styles.sectionTitle}>Huéspedes</Text>
         <TextInput
           style={styles.input}
-          placeholder="Total de personas *"
+          placeholder="Adultos *"
           placeholderTextColor="#777"
-          value={personas}
-          onChangeText={setPersonas}
+          value={adultos}
+          onChangeText={setAdultos}
           keyboardType="numeric"
         />
         <TextInput
           style={styles.input}
-          placeholder="Menores de edad"
+          placeholder="Menores"
           placeholderTextColor="#777"
           value={menores}
           onChangeText={setMenores}
@@ -225,7 +260,9 @@ export default function ReservaScreen() {
         {/* Precio total */}
         <View style={styles.precioContainer}>
           <Text style={styles.precioTitulo}>Resumen de pago</Text>
-          <Text style={styles.precioDetalle}>${precioTotal.toFixed(2)} MXN total</Text>
+          <Text style={styles.precioDetalle}>
+            ${precioTotal.toFixed(2)} MXN total
+          </Text>
           <Text style={styles.precioExtra}>Incluye transporte</Text>
         </View>
 
@@ -238,8 +275,8 @@ export default function ReservaScreen() {
       <AuthRequiredModal
         visible={showModal}
         onClose={() => setShowModal(false)}
-        sitioId={`/categorias/reserva?sitioId=${sitioId}`}
-        context="restaurante"
+        sitioId={`/categorias/reserva-hotel?sitioId=${sitioId}`}
+        context="hotel"
       />
     </SafeAreaView>
   );
@@ -249,6 +286,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: "#fff" },
   title: { fontSize: 24, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
   sectionTitle: { fontSize: 18, fontWeight: "600", marginTop: 16, marginBottom: 8 },
+  nochesText: { fontSize: 16, color: "#007AFF", fontWeight: "500", marginBottom: 12 },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",

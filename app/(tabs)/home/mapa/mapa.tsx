@@ -20,7 +20,7 @@ import {
 } from "react-native";
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
-import CLEAN_STYLE from '../../assets/map-style-clean.json';
+import CLEAN_STYLE from '../../../../assets/map-style-clean.json';
 
 // ===== Helpers anti-flicker =====
 const movedEnough = (
@@ -546,7 +546,7 @@ const closeSheet = () => {
                 </View>
 
                 <View style={styles.actionsRow}>
-                  <Link href={`/sitios/${selectedSitio.id}`} asChild>
+                  <Link href={`/(tabs)/home/sitios/${selectedSitio.id}`} asChild>
                     <TouchableOpacity style={styles.moreInfoButton}>
                       <Text style={styles.moreInfoText}>Más información</Text>
                     </TouchableOpacity>
@@ -580,8 +580,8 @@ const closeSheet = () => {
                   <Link
                     href={{
                       pathname: selectedSitio.categoria.nombre.toLowerCase().includes('hotel')
-                        ? "/categorias/reserva-hotel"
-                        : "/categorias/reserva",
+                        ? "/(tabs)/home/categorias/reserva-hotel"
+                        : "/(tabs)/home/categorias/reserva",
                       params: { sitioId: selectedSitio.id.toString() }
                     }}
                     asChild

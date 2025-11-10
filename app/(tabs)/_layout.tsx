@@ -10,9 +10,9 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
-          title:"Inicio",
+          headerShown: false,
           tabBarIcon:({color,size})=>(
             <MaterialCommunityIcons name="home" color={color} size={size}/>
           )

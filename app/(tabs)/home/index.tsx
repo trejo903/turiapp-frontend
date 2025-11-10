@@ -69,7 +69,7 @@ export default function Index() {
   }
 
   const openChat = () => {
-    router.push("/sitios/chat"); // 👈 ruta recomendada (archivo en app/chat.tsx)
+    router.push("/(tabs)/home/sitios/chat"); // 👈 ruta recomendada (archivo en app/chat.tsx)
   };
 
   return (
@@ -90,7 +90,7 @@ export default function Index() {
           return (
             <Link
               href={{
-                pathname: "/mapa/mapa",
+                pathname: "/(tabs)/home/mapa/mapa",
                 params: { catId: String(item.id), nombre: item.nombre },
               }}
               asChild

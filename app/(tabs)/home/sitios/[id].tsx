@@ -97,7 +97,6 @@ export default function SitioScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <AppHeader title={sitio.nombre} onBack={() => router.back()} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
