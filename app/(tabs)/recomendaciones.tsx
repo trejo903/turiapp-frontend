@@ -1,5 +1,5 @@
 // app/(tabs)/recomendaciones.tsx
-import FilterModal from "@/src/components/FilterModal";
+import FilterModal, { CategoryFilter } from "@/src/components/FilterModal";
 import { BASE_URL } from "@/src/lib/api";
 import { useAuth } from "@/src/state/auth";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -15,13 +15,8 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
-
-// Variable de entorno que apunta a la API Key de Google Maps
-const MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-
-export type SortBy = 'distance' | 'rating' | 'popular' | 'combined';
 
 type Reco = {
   id: number;
@@ -32,15 +27,31 @@ type Reco = {
   estado: string;
   municipio: string;
   cp?: string | null;
-  score?: number;         // promedio/ranking
-  distancekm?: number;    // distancia en KM
-  reviewCount?: number;   // # de opiniones
+  score?: number; // promedio/ranking
+  distancekm?: number; // distancia en KM
+  reviewCount?: number; // # de opiniones
 };
 
 const formatImageUrl = (imgPath?: string | null) => {
   if (!imgPath) return null;
-  if (imgPath.startsWith("http://") || imgPath.startsWith("https://")) return imgPath;
+  if (imgPath.startsWith("http://") || imgPath.startsWith("https://"))
+    return imgPath;
   return `https://res.cloudinary.com/${imgPath}`;
+};
+
+// 👇 Mapea el filtro a los IDs de tu tabla "categoria"
+const getCategoriaIdFromFilter = (filter: CategoryFilter): number | null => {
+  switch (filter) {
+    case "ocio":
+      return 1; // Ocio & Aventura
+    case "gastro":
+      return 2; // Gastro & Cultura
+    case "relax":
+      return 3; // Relax & Salud Hotel
+    case "all":
+    default:
+      return null; // todas las categorías
+  }
 };
 
 export default function RecomendacionesTab() {
@@ -50,80 +61,37 @@ export default function RecomendacionesTab() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState<Reco[]>([]);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState<SortBy>("distance");
+  const [selectedFilter, setSelectedFilter] =
+    useState<CategoryFilter>("all");
 
   const router = useRouter();
 
   const subtitle = useMemo(() => {
     if (!userLocation) return "Cerca de ti";
-    return `Cerca de ti (${userLocation.latitude.toFixed(3)}, ${userLocation.longitude.toFixed(3)})`;
+    return `Cerca de ti (${userLocation.latitude.toFixed(
+      3
+    )}, ${userLocation.longitude.toFixed(3)})`;
   }, [userLocation]);
-
-  // --- Ponderación local combinada (distancia + rating)
-  const calculateCombinedScore = (item: Reco) => {
-    const maxDistance = Math.max(...items.map(i => i.distancekm || 0));
-    const normalizedDistance = maxDistance > 0 ? 1 - ((item.distancekm || 0) / maxDistance) : 0;
-    const normalizedRating = (item.score || 0) / 5;
-    return (normalizedDistance * 0.5) + (normalizedRating * 0.5);
-  };
-
-  // --- Ordenamiento local ---
-  const sortedItems = useMemo(() => {
-    const arr = [...items];
-    switch (selectedFilter) {
-      case "distance":
-        return arr.sort((a, b) => (a.distancekm ?? Infinity) - (b.distancekm ?? Infinity));
-      case "rating":
-        return arr.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-      case "popular":
-        return arr.sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0));
-      case "combined":
-        return arr.sort((a, b) => calculateCombinedScore(b) - calculateCombinedScore(a));
-      default:
-        return arr;
-    }
-  }, [items, selectedFilter]);
 
   const getFilterLabel = () => {
     switch (selectedFilter) {
-      case "distance": return "Más cercano";
-      case "rating": return "Mejor puntuado";
-      case "popular": return "Más opinado";
-      case "combined": return "Recomendado";
-      default: return "Filtrar";
+      case "all":
+        return "Todas";
+      case "ocio":
+        return "Ocio & Aventura";
+      case "gastro":
+        return "Gastro & Cultura";
+      case "relax":
+        return "Relax & Salud Hotel";
+      default:
+        return "Filtrar";
     }
   };
-
-  /**
-   *  Abre Google Maps externo.
-   * Ya no se utiliza porque la app tiene integración interna con Google Maps (API Key).
-   * Se conserva solo para no borrarlo.
-   */
-  /*
-  const openMaps = useCallback(
-    async (lat: number, lng: number) => {
-      const origin = userLocation ? `${userLocation.latitude},${userLocation.longitude}` : null;
-      const googleApp = `comgooglemaps://?${origin ? `saddr=${origin}&` : ""}daddr=${lat},${lng}&directionsmode=driving`;
-      const googleWeb = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}${origin ? `&origin=${origin}` : ""}&travelmode=driving`;
-      const appleApp = `maps://?${origin ? `saddr=${origin}&` : ""}daddr=${lat},${lng}`;
-      const appleWeb = `http://maps.apple.com/?${origin ? `saddr=${origin}&` : ""}daddr=${lat},${lng}`;
-      if (Platform.OS === "ios") {
-        const canApple = await Linking.canOpenURL("maps://");
-        if (canApple) return Linking.openURL(appleApp);
-        const canGoogle = await Linking.canOpenURL("comgooglemaps://");
-        if (canGoogle) return Linking.openURL(googleApp);
-        return Linking.openURL(appleWeb);
-      } else {
-        const canGoogle = await Linking.canOpenURL("comgooglemaps://");
-        if (canGoogle) return Linking.openURL(googleApp);
-        return Linking.openURL(googleWeb);
-      }
-    },
-    [userLocation]
-  );
-  */
 
   // --- Fetch recomendaciones desde backend ---
   const fetchRecs = useCallback(async () => {
@@ -131,18 +99,28 @@ export default function RecomendacionesTab() {
     try {
       setLoading(true);
 
-      const url =
-        `${BASE_URL}/recs/nearby` +
-        `?lat=${userLocation.latitude}` +
-        `&lng=${userLocation.longitude}` +
-        (userId ? `&userId=${userId}` : "") +
-        `&k=30` +
-        `&sortBy=${selectedFilter}`;
+      const params = new URLSearchParams();
+      params.append("lat", String(userLocation.latitude));
+      params.append("lng", String(userLocation.longitude));
+      params.append("k", "30");
 
-      const res = await fetch(url);
+      if (userId) params.append("userId", String(userId));
+
+      const categoriaId = getCategoriaIdFromFilter(selectedFilter);
+      if (categoriaId !== null) {
+        params.append("categoriaId", String(categoriaId));
+      }
+
+      // Si tu endpoint /recs/nearby no necesita sortBy, lo omitimos.
+      // Si aún lo requiere, puedes poner por ejemplo:
+      // params.append("sortBy", "distance");
+
+      const res = await fetch(
+        `${BASE_URL}/recs/nearby?${params.toString()}`
+      );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const payload: { sortByUsed: string; total: number; data: any[] } = await res.json();
+      const payload: { total: number; data: any[] } = await res.json();
 
       const mapped: Reco[] = (payload.data ?? []).map((r) => ({
         id: Number(r.id),
@@ -154,14 +132,19 @@ export default function RecomendacionesTab() {
         municipio: r.municipio,
         cp: r.cp ?? null,
         score: Number(r.score ?? r.reco_score ?? r.avg_rating ?? 0),
-        distancekm: Number(r.distancekm ?? r.distanceKm ?? r.distance_km ?? r.distance ?? 0),
+        distancekm: Number(
+          r.distancekm ?? r.distanceKm ?? r.distance_km ?? r.distance ?? 0
+        ),
         reviewCount: Number(r.reviewCount ?? r.review_count ?? 0),
       }));
 
       setItems(mapped);
     } catch (e: any) {
       console.log("Recs error:", e?.message ?? e);
-      Alert.alert("Recomendaciones", "No se pudieron cargar las recomendaciones.");
+      Alert.alert(
+        "Recomendaciones",
+        "No se pudieron cargar las recomendaciones."
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -171,14 +154,23 @@ export default function RecomendacionesTab() {
   // --- Permiso + ubicación del usuario ---
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } =
+        await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Ubicación", "Necesitamos permiso de ubicación para recomendarte lugares cercanos.");
+        Alert.alert(
+          "Ubicación",
+          "Necesitamos permiso de ubicación para recomendarte lugares cercanos."
+        );
         setLoading(false);
         return;
       }
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      setUserLocation({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      });
     })();
   }, []);
 
@@ -195,19 +187,32 @@ export default function RecomendacionesTab() {
   // --- Render de cada card ---
   const renderItem = ({ item }: { item: Reco }) => {
     const uri = formatImageUrl(item.img) ?? undefined;
+
     return (
       <View style={s.card}>
+        {/* Imagen superior */}
         {uri ? (
-          <Image source={{ uri }} style={s.img} resizeMode="cover" />
+          <Image
+            source={{ uri }}
+            style={s.img}
+            resizeMode="cover"
+          />
         ) : (
           <View style={s.imgPlaceholder}>
-            <MaterialCommunityIcons name="image-off-outline" size={36} color="#888" />
+            <MaterialCommunityIcons
+              name="image-off-outline"
+              size={36}
+              color="#888"
+            />
           </View>
         )}
 
+        {/* Contenido */}
         <View style={s.cardBody}>
-          <Text style={s.title}>{item.nombre}</Text>
-          <Text style={s.meta}>
+          <Text style={s.title} numberOfLines={1}>
+            {item.nombre}
+          </Text>
+          <Text style={s.meta} numberOfLines={1}>
             {item.municipio}, {item.estado}
             {item.cp ? `, C.P. ${item.cp}` : ""}
           </Text>
@@ -216,22 +221,38 @@ export default function RecomendacionesTab() {
           <View style={s.badges}>
             {typeof item.distancekm === "number" && (
               <View style={s.badge}>
-                <MaterialCommunityIcons name="map-marker-distance" size={14} />
-                <Text style={s.badgeText}>{item.distancekm.toFixed(2)} km</Text>
+                <MaterialCommunityIcons
+                  name="map-marker-distance"
+                  size={14}
+                />
+                <Text style={s.badgeText}>
+                  {item.distancekm.toFixed(2)} km
+                </Text>
               </View>
             )}
             {typeof item.score === "number" && item.score > 0 && (
               <View style={s.badge}>
-                <MaterialCommunityIcons name="star-outline" size={14} />
-                <Text style={s.badgeText}>{item.score.toFixed(2)}</Text>
+                <MaterialCommunityIcons
+                  name="star-outline"
+                  size={14}
+                />
+                <Text style={s.badgeText}>
+                  {item.score.toFixed(2)}
+                </Text>
               </View>
             )}
-            {typeof item.reviewCount === "number" && item.reviewCount > 0 && (
-              <View style={s.badge}>
-                <MaterialCommunityIcons name="message-text-outline" size={14} />
-                <Text style={s.badgeText}>{item.reviewCount}</Text>
-              </View>
-            )}
+            {typeof item.reviewCount === "number" &&
+              item.reviewCount > 0 && (
+                <View style={s.badge}>
+                  <MaterialCommunityIcons
+                    name="message-text-outline"
+                    size={14}
+                  />
+                  <Text style={s.badgeText}>
+                    {item.reviewCount}
+                  </Text>
+                </View>
+              )}
           </View>
 
           {/* Acciones */}
@@ -246,13 +267,23 @@ export default function RecomendacionesTab() {
                 })
               }
             >
-              <Text style={s.btnTextWhite}>Ir</Text>
+              <MaterialCommunityIcons
+                name="map-search"
+                size={16}
+                color="#fff"
+              />
+              <Text style={s.btnTextWhite}>Ver en mapa</Text>
             </TouchableOpacity>
 
             {/* Más información */}
             <Link href={`/sitios/${item.id}`} asChild>
               <TouchableOpacity style={[s.btn, s.btnPrimary]}>
-                <Text style={s.btnTextWhite}>Más información</Text>
+                <MaterialCommunityIcons
+                  name="information-outline"
+                  size={16}
+                  color="#fff"
+                />
+                <Text style={s.btnTextWhite}>Detalles</Text>
               </TouchableOpacity>
             </Link>
           </View>
@@ -261,104 +292,186 @@ export default function RecomendacionesTab() {
     );
   };
 
-
   return (
     <View style={s.container}>
+      {/* Header */}
       <View style={s.header}>
-        <View className="headerTop" style={s.headerTop}>
-          <Text style={s.h1}>Recomendados</Text>
-          <TouchableOpacity style={s.filterButton} onPress={() => setFilterModalVisible(true)}>
-            <MaterialCommunityIcons name="filter-variant" size={20} color="#0d0575ff" />
-            <Text style={s.filterButtonText}>{getFilterLabel()}</Text>
+        <View style={s.headerTop}>
+          <View>
+            <Text style={s.h1}>Recomendados</Text>
+            <Text style={s.h2}>{subtitle}</Text>
+          </View>
+
+          <TouchableOpacity
+            style={s.filterButton}
+            onPress={() => setFilterModalVisible(true)}
+          >
+            <MaterialCommunityIcons
+              name="filter-variant"
+              size={20}
+              color="#0d0575ff"
+            />
+            <Text style={s.filterButtonText}>
+              {getFilterLabel()}
+            </Text>
           </TouchableOpacity>
         </View>
-        <Text style={s.h2}>{subtitle}</Text>
       </View>
 
+      {/* Lista */}
       {loading ? (
         <View style={s.loading}>
           <ActivityIndicator />
-          <Text style={s.loadingTxt}>Buscando lugares cercanos…</Text>
+          <Text style={s.loadingTxt}>
+            Buscando lugares cercanos…
+          </Text>
         </View>
       ) : (
         <FlatList
-          data={sortedItems}
+          data={items}
           keyExtractor={(it) => String(it.id)}
           renderItem={renderItem}
-          contentContainerStyle={{ padding: 12, gap: 12 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={<Text style={s.empty}>No hay recomendaciones por ahora.</Text>}
+          contentContainerStyle={s.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+            />
+          }
+          ListEmptyComponent={
+            <Text style={s.empty}>
+              No hay recomendaciones por ahora.
+            </Text>
+          }
         />
       )}
 
+      {/* Modal de filtros por categoría */}
       <FilterModal
         visible={filterModalVisible}
         onClose={() => setFilterModalVisible(false)}
         selectedFilter={selectedFilter}
-        onFilterChange={(f: string) => setSelectedFilter(f as SortBy)}
+        onFilterChange={(f) => setSelectedFilter(f)}
       />
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  header: { padding: 16, paddingBottom: 6 },
+  container: { flex: 1, backgroundColor: "#f5f5f9" },
+
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+    backgroundColor: "#fff",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#e4e4ea",
+  },
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4,
   },
   h1: { fontSize: 22, fontWeight: "700", color: "#0d0575ff" },
-  h2: { fontSize: 14, color: "#666", marginTop: 2 },
+  h2: { fontSize: 13, color: "#777", marginTop: 2 },
 
   filterButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     backgroundColor: "#f8f9ff",
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#e0e0e0",
   },
-  filterButtonText: { fontSize: 14, fontWeight: "600", color: "#0d0575ff" },
-  loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
+  filterButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0d0575ff",
+  },
+
+  listContent: {
+    padding: 12,
+    gap: 12,
+  },
+
+  loading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
   loadingTxt: { color: "#666" },
-  empty: { textAlign: "center", color: "#777", marginTop: 40 },
-  card: { backgroundColor: "#fff", borderRadius: 12, overflow: "hidden", elevation: 2, shadowOpacity: 0.08 },
+  empty: {
+    textAlign: "center",
+    color: "#777",
+    marginTop: 40,
+  },
+
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 3,
+  },
   img: { width: "100%", height: 140 },
   imgPlaceholder: {
-    width: "100%", height: 140, backgroundColor: "#f3f4f6", alignItems: "center", justifyContent: "center",
+    width: "100%",
+    height: 140,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  cardBody: { padding: 12, gap: 8 },
+
+  cardBody: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 6,
+  },
   title: { fontSize: 16, fontWeight: "700", color: "#111" },
   meta: { fontSize: 13, color: "#555" },
-  badges: { flexDirection: "row", gap: 10, marginTop: 2 },
-  badge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#f1f5ff", paddingVertical: 4, paddingHorizontal: 8, borderRadius: 9999 },
-  badgeText: { fontSize: 12, color: "#333" },
-  actions: { 
-    flexDirection: "row", 
-    gap: 10, 
-    marginTop: 10,
-    justifyContent: "space-between",
-    alignItems: "center",
+
+  badges: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 4,
     flexWrap: "wrap",
   },
-  btn: { 
-    flex: 1, 
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#f1f5ff",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 9999,
+  },
+  badgeText: { fontSize: 12, color: "#333" },
+
+  actions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  btn: {
+    flex: 1,
     minWidth: 120,
-    paddingVertical: 10,
-    borderRadius: 8, 
-    alignItems: "center", 
-    justifyContent: "center", 
-    flexDirection: "row", 
-    gap: 8 
+    paddingVertical: 9,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
   },
   btnPrimary: { backgroundColor: "#0d0575ff" },
   btnMap: { backgroundColor: "#4CAF50" },
-  btnTextPrimary: { color: "#fff", fontWeight: "700" },
-  btnTextWhite: { color: "#fff", fontWeight: "700" },
+  btnTextWhite: { color: "#fff", fontWeight: "700", fontSize: 13 },
 });

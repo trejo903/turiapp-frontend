@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/logo2.png",
     "scheme": "turiappfrontend",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "infoPlist": {

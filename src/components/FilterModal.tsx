@@ -1,37 +1,29 @@
 // src/components/FilterModal.tsx
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React from "react";
 import {
-  Animated,
-  Dimensions,
   Modal,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
+  Pressable,
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-const { width } = Dimensions.get('window');
+export type CategoryFilter = "all" | "ocio" | "gastro" | "relax";
 
-type FilterOption = {
-  id: string;
-  label: string;
-  icon: string;
-};
-
-type FilterModalProps = {
+type Props = {
   visible: boolean;
   onClose: () => void;
-  selectedFilter: string;
-  onFilterChange: (filter: string) => void;
+  selectedFilter: CategoryFilter;
+  onFilterChange: (f: CategoryFilter) => void;
 };
 
-const filterOptions: FilterOption[] = [
-  { id: 'distance', label: 'Más cercano', icon: 'map-marker-distance' },
-  { id: 'rating', label: 'Mejor puntuado', icon: 'star-outline' },
-  { id: 'popular', label: 'Más opinado', icon: 'message-text-outline' },
-  { id: 'combined', label: 'Recomendado', icon: 'trending-up' },
+const OPTIONS: { id: CategoryFilter; label: string; icon: string }[] = [
+  { id: "all", label: "Todas", icon: "select-all" },
+  { id: "ocio", label: "Ocio & Aventura", icon: "run" },
+  { id: "gastro", label: "Gastro & Cultura", icon: "silverware-fork-knife" },
+  { id: "relax", label: "Relax & Salud Hotel", icon: "spa" },
 ];
 
 export default function FilterModal({
@@ -39,80 +31,51 @@ export default function FilterModal({
   onClose,
   selectedFilter,
   onFilterChange,
-}: FilterModalProps) {
-  const [slideAnim] = useState(new Animated.Value(width));
-
-  React.useEffect(() => {
-    if (visible) {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: width,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible]);
+}: Props) {
+  const handleSelect = (id: CategoryFilter) => {
+    onFilterChange(id);
+    onClose();
+  };
 
   return (
     <Modal
       visible={visible}
+      animationType="slide"
       transparent
-      animationType="none"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <TouchableOpacity 
-          style={styles.backdrop} 
-          onPress={onClose}
-          activeOpacity={1}
-        />
-        <Animated.View 
-          style={[
-            styles.modalContent,
-            { transform: [{ translateX: slideAnim }] }
-          ]}
-        >
-          <View style={styles.header}>
-            <Text style={styles.title}>Filtrar por</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <MaterialCommunityIcons name="close" size={24} color="#666" />
+      <Pressable style={s.backdrop} onPress={onClose}>
+        <Pressable style={s.sheet}>
+          <View style={s.header}>
+            <Text style={s.title}>Filtrar por</Text>
+            <TouchableOpacity onPress={onClose}>
+              <MaterialCommunityIcons
+                name="close"
+                size={22}
+                color="#111"
+              />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.optionsContainer}>
-            {filterOptions.map((option) => (
+          {OPTIONS.map((opt) => {
+            const active = selectedFilter === opt.id;
+            return (
               <TouchableOpacity
-                key={option.id}
-                style={[
-                  styles.option,
-                  selectedFilter === option.id && styles.optionSelected,
-                ]}
-                onPress={() => {
-                  onFilterChange(option.id);
-                  onClose();
-                }}
+                key={opt.id}
+                style={[s.row, active && s.rowActive]}
+                onPress={() => handleSelect(opt.id)}
               >
-                <View style={styles.optionContent}>
+                <View style={s.rowLeft}>
                   <MaterialCommunityIcons
-                    name={option.icon as any}
+                    name={opt.icon as any}
                     size={20}
-                    color={selectedFilter === option.id ? '#0d0575ff' : '#666'}
+                    color={active ? "#0d0575ff" : "#555"}
                   />
-                  <Text
-                    style={[
-                      styles.optionText,
-                      selectedFilter === option.id && styles.optionTextSelected,
-                    ]}
-                  >
-                    {option.label}
+                  <Text style={[s.rowText, active && s.rowTextActive]}>
+                    {opt.label}
                   </Text>
                 </View>
-                {selectedFilter === option.id && (
+                {active && (
                   <MaterialCommunityIcons
                     name="check"
                     size={20}
@@ -120,70 +83,52 @@ export default function FilterModal({
                   />
                 )}
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </Animated.View>
-      </View>
+            );
+          })}
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    flexDirection: 'row',
-  },
+const s = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.25)",
   },
-  modalContent: {
-    width: width * 0.8,
-    backgroundColor: '#fff',
-    borderLeftWidth: 1,
-    borderLeftColor: '#f0f0f0',
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0d0575ff',
+  title: { fontSize: 18, fontWeight: "700", color: "#0d0575ff" },
+
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#eee",
   },
-  closeButton: {
-    padding: 4,
+  rowActive: {
+    backgroundColor: "#f4f3ff",
   },
-  optionsContainer: {
-    flex: 1,
-  },
-  option: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5',
-  },
-  optionSelected: {
-    backgroundColor: '#f8f9ff',
-  },
-  optionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  rowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
-  optionText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  optionTextSelected: {
-    color: '#0d0575ff',
-    fontWeight: '600',
-  },
+  rowText: { fontSize: 15, color: "#333" },
+  rowTextActive: { color: "#0d0575ff", fontWeight: "600" },
 });
