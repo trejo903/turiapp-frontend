@@ -7,7 +7,6 @@ import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
-
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -31,10 +30,8 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <BottomSheetModalProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          {/* Tu árbol principal: tabs, stacks, etc. */}
-          <Stack.Screen name="(tabs)" />
-        </Stack>
+        <Stack screenOptions={{ headerShown: false }} />
+        {/* 👆 Nada de <Stack.Screen name="/(tabs)" /> */}
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
