@@ -49,17 +49,7 @@ const QUICK_REPLIES = [
     id: "q1",
     label: "Categorías que visitar",
     text: "Qué categorías me recomiendas para visitar",
-  },
-  {
-    id: "q2",
-    label: "Lugar mejor calificado",
-    text: "Cuál es el lugar mejor calificado",
-  },
-  {
-    id: "q3",
-    label: "Lugar más opinado",
-    text: "Cuál es el lugar mejor opinado, con más opiniones",
-  },
+  }
 ];
 
 export default function Chat() {
