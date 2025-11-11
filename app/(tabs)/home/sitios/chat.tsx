@@ -45,8 +45,14 @@ type Msg =
 
 // 👇 sugerencias rápidas ACTUALIZADAS
 const QUICK_REPLIES = [
+  
   {
     id: "q1",
+    label: "Hola",
+    text: "Hola",
+  },
+  {
+    id: "q2",
     label: "Categorías que visitar",
     text: "Qué categorías me recomiendas para visitar",
   }
@@ -209,80 +215,85 @@ export default function Chat() {
   };
 
   return (
+  <SafeAreaView
+    style={s.container}
+    edges={["top", "left", "right"]} // el bottom lo maneja el teclado
+  >
+    <Stack.Screen options={{ title: "Chat", headerTitleAlign: "left" }} />
+
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior="padding"                       // 👈 ahora sí afecta también en Android
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
     >
-      <SafeAreaView
-        style={s.container}
-        edges={["top", "left", "right", "bottom"]}
-      >
-        <Stack.Screen options={{ title: "Chat", headerTitleAlign: "left" }} />
+      {/* Lista de mensajes */}
+      <FlatList
+        ref={listRef}
+        data={msgs}
+        keyExtractor={(m) => m.id}
+        renderItem={renderItem}
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          s.listContent,
+          { paddingBottom: 8, flexGrow: 1 },   // 👈 que el contenido pueda crecer
+        ]}
+        keyboardShouldPersistTaps="handled"
+      />
 
-        {/* Lista de mensajes */}
-        <FlatList
-          ref={listRef}
-          data={msgs}
-          keyExtractor={(m) => m.id}
-          renderItem={renderItem}
-          style={{ flex: 1 }}
-          contentContainerStyle={[s.listContent, { paddingBottom: 8 }]}
-        />
-
-        {/* Sugerencias rápidas */}
-        <View style={[s.quickWrap, { paddingBottom: 4 }]}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.quickScroll}
-          >
-            {QUICK_REPLIES.map((q) => (
-              <TouchableOpacity
-                key={q.id}
-                style={s.quickChip}
-                activeOpacity={0.9}
-                onPress={() => handleQuickReply(q.text)}
-                disabled={thinking}
-              >
-                <Text style={s.quickText}>{q.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Barra de input */}
-        <View style={[s.inputWrap, { paddingBottom: 4 + insets.bottom }]}>
-          <View style={s.inputBar}>
-            <TextInput
-              value={input}
-              onChangeText={setInput}
-              placeholder="Escribe tu mensaje…"
-              placeholderTextColor="#9aa1b2"
-              style={s.input}
-              onSubmitEditing={handleSend}
-              returnKeyType="send"
-            />
+      {/* Sugerencias rápidas */}
+      <View style={[s.quickWrap, { paddingBottom: 4 }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.quickScroll}
+        >
+          {QUICK_REPLIES.map((q) => (
             <TouchableOpacity
-              style={[
-                s.sendBtn,
-                !input.trim() || thinking ? s.sendBtnDisabled : null,
-              ]}
-              onPress={handleSend}
-              disabled={!input.trim() || thinking}
+              key={q.id}
+              style={s.quickChip}
               activeOpacity={0.9}
+              onPress={() => handleQuickReply(q.text)}
+              disabled={thinking}
             >
-              {thinking ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <MaterialCommunityIcons name="send" size={20} color="#fff" />
-              )}
+              <Text style={s.quickText}>{q.label}</Text>
             </TouchableOpacity>
-          </View>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Barra de input */}
+      <View style={[s.inputWrap, { paddingBottom: 4 + insets.bottom }]}>
+        <View style={s.inputBar}>
+          <TextInput
+            value={input}
+            onChangeText={setInput}
+            placeholder="Escribe tu mensaje…"
+            placeholderTextColor="#9aa1b2"
+            style={s.input}
+            onSubmitEditing={handleSend}
+            returnKeyType="send"
+          />
+          <TouchableOpacity
+            style={[
+              s.sendBtn,
+              !input.trim() || thinking ? s.sendBtnDisabled : null,
+            ]}
+            onPress={handleSend}
+            disabled={!input.trim() || thinking}
+            activeOpacity={0.9}
+          >
+            {thinking ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <MaterialCommunityIcons name="send" size={20} color="#fff" />
+            )}
+          </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     </KeyboardAvoidingView>
-  );
+  </SafeAreaView>
+);
+
 }
 
 // === TARJETA DE SITIO DENTRO DEL CHAT ===
@@ -338,7 +349,7 @@ function SitioCard({ sitio }: SitioCardProps) {
           <Text style={s.mapText}>Abrir en mapas</Text>
         </TouchableOpacity>
 
-        <Link href={`/sitios/${sitio.id}`} asChild>
+        <Link href={`/(tabs)/home/sitios/${sitio.id}`} asChild>
           <TouchableOpacity style={s.moreBtn}>
             <Text style={s.moreText}>Más información</Text>
           </TouchableOpacity>
