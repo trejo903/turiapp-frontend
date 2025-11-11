@@ -82,6 +82,8 @@ type TravelMode = "DRIVING" | "WALKING";
 export default function Mapa() {
   const { user, token } = useAuth();
   const userId = user?.id ?? null;
+  const hasFittedOnceRef = useRef(false);
+
 
   // Ahora también recibimos estado y municipio
   const {
@@ -335,77 +337,86 @@ export default function Mapa() {
   }, [kmlRoute]);
 
   // Cargar sitios por categoría + FILTRAR POR REGIÓN
-  useEffect(() => {
-    if (sitioId) return; // Si viene sitioId desde recomendaciones, ya manejamos arriba.
+ useEffect(() => {
+  if (sitioId) return; // Si viene sitioId desde recomendaciones, ya manejamos arriba.
 
-    let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
+  let mounted = true;
+  (async () => {
+    try {
+      setLoading(true);
 
-        const all = await getSitiosByCategoria(categoriaId);
+      const all = await getSitiosByCategoria(categoriaId);
 
-        // ----- Filtro por región (estado / municipio) -----
-        let filtered = all;
-        const e = (selectedEstado ?? "").toLowerCase().trim();
-        const m = (selectedMunicipio ?? "").toLowerCase().trim();
+      // ----- Filtro por región (estado / municipio) -----
+      let filtered = all;
+      const e = (selectedEstado ?? "").toLowerCase().trim();
+      const m = (selectedMunicipio ?? "").toLowerCase().trim();
 
-        if (e || m) {
-          filtered = all.filter((s) => {
-            const se = (s.estado ?? "").toLowerCase().trim();
-            const sm = (s.municipio ?? "").toLowerCase().trim();
-            if (e && m) return se === e && sm === m;
-            if (e) return se === e;
-            if (m) return sm === m;
-            return true;
-          });
-        }
-
-        if (!mounted) return;
-        setSitios(filtered);
-
-        console.log("Sitios cargados (todos):", all.length);
-        console.log("Sitios tras filtro región:", filtered.length);
-
-        if (filtered.length > 0 && mapRef.current) {
-          const coords = filtered.map((s) => ({
-            latitude: s.latitude as number,
-            longitude: s.longitude as number,
-          }));
-          if (userLocation) coords.push(userLocation);
-
-          if (kmlRoute) {
-            coords.push(
-              ...kmlRoute.coordinates.map((c) => ({
-                latitude: c.latitude,
-                longitude: c.longitude,
-              }))
-            );
-          }
-
-          mapRef.current.fitToCoordinates(coords, {
-            edgePadding: { top: 80, right: 40, bottom: 40, left: 40 },
-            animated: true,
-          });
-        }
-      } catch (err) {
-        console.log("Error al mostrar los sitios", err);
-      } finally {
-        if (mounted) setLoading(false);
+      if (e || m) {
+        filtered = all.filter((s) => {
+          const se = (s.estado ?? "").toLowerCase().trim();
+          const sm = (s.municipio ?? "").toLowerCase().trim();
+          if (e && m) return se === e && sm === m;
+          if (e) return se === e;
+          if (m) return sm === m;
+          return true;
+        });
       }
-    })();
 
-    return () => {
-      mounted = false;
-    };
-  }, [
-    categoriaId,
-    kmlRoute,
-    sitioId,
-    userLocation,
-    selectedEstado,
-    selectedMunicipio,
-  ]);
+      if (!mounted) return;
+      setSitios(filtered);
+
+      console.log("Sitios cargados (todos):", all.length);
+      console.log("Sitios tras filtro región:", filtered.length);
+
+      // 👇 Solo ajustar UNA vez
+      if (
+        !hasFittedOnceRef.current &&
+        filtered.length > 0 &&
+        mapRef.current
+      ) {
+        const coords = filtered.map((s) => ({
+          latitude: s.latitude as number,
+          longitude: s.longitude as number,
+        }));
+
+        if (userLocation) coords.push(userLocation);
+
+        if (kmlRoute) {
+          coords.push(
+            ...kmlRoute.coordinates.map((c) => ({
+              latitude: c.latitude,
+              longitude: c.longitude,
+            }))
+          );
+        }
+
+        mapRef.current.fitToCoordinates(coords, {
+          edgePadding: { top: 80, right: 40, bottom: 40, left: 40 },
+          animated: true,
+        });
+
+        hasFittedOnceRef.current = true; // ✅ ya no vuelvas a ajustar
+      }
+    } catch (err) {
+      console.log("Error al mostrar los sitios", err);
+    } finally {
+      if (mounted) setLoading(false);
+    }
+  })();
+
+  return () => {
+    mounted = false;
+  };
+}, [
+  categoriaId,
+  kmlRoute,
+  sitioId,
+  userLocation,          // puede seguir aquí, el flag evita el ajuste continuo
+  selectedEstado,
+  selectedMunicipio,
+]);
+
 
   const handleMarkerPress = useCallback((sitio: Sitio) => {
     setSelectedSitio(sitio);
