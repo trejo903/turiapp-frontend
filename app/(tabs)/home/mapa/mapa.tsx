@@ -34,6 +34,7 @@ import {
 import MapView, { Marker, Polyline } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 import CLEAN_STYLE from "../../../../assets/map-style-clean.json";
+import Categoriafiltro from "./categoriaFiltro";
 
 // ===== Helpers anti-flicker =====
 const movedEnough = (
@@ -84,7 +85,6 @@ export default function Mapa() {
   const userId = user?.id ?? null;
   const hasFittedOnceRef = useRef(false);
 
-
   // Ahora también recibimos estado y municipio
   const {
     id,
@@ -115,7 +115,9 @@ export default function Mapa() {
     [favIds]
   );
 
-  const categoriaId = Number(catId);
+  const categoriaIdInicial = Number(catId);
+  const [categoriaActiva, setCategoriaActiva] = useState<number | null>(null);
+  const [cargandoSitios, setCargandoSitios] = useState(false);
   const [sitios, setSitios] = useState<Sitio[]>([]);
   const [selectedSitio, setSelectedSitio] = useState<Sitio | null>(null);
   const [loading, setLoading] = useState(true);
@@ -226,6 +228,140 @@ export default function Mapa() {
     }
   }, [latitude, longitude, nombre, id, sitioId, selectedSitio]);
 
+  // Establecer categoría inicial desde parámetros
+  useEffect(() => {
+    if (catId) {
+      const idNum = Number(catId);
+      if (!isNaN(idNum)) {
+        setCategoriaActiva(idNum);
+      }
+    }
+  }, [catId]);
+
+  // 🔥 USEFFECT PRINCIPAL - Cargar sitios por categoría y filtrar por región
+  useEffect(() => {
+    // Si viene de recomendaciones (sitioId), no cargar por categoría
+    if (sitioId) return;
+
+    // Si no hay categoría activa, no cargar sitios
+    if (!categoriaActiva) return;
+
+    let mounted = true;
+    
+    (async () => {
+      try {
+        setLoading(true);
+        console.log("🔄 Cargando sitios para categoría:", categoriaActiva);
+
+        // Obtener TODOS los sitios de la categoría seleccionada
+        const allSitios = await getSitiosByCategoria(categoriaActiva);
+        
+        if (!mounted) return;
+
+        console.log("✅ Sitios obtenidos de API:", allSitios.length);
+
+        // ----- FILTRAR POR REGIÓN (estado / municipio) -----
+        let sitiosFiltrados = allSitios;
+        
+        if (selectedEstado || selectedMunicipio) {
+          const estadoLower = (selectedEstado ?? "").toLowerCase().trim();
+          const municipioLower = (selectedMunicipio ?? "").toLowerCase().trim();
+          
+          sitiosFiltrados = allSitios.filter((sitio) => {
+            const sitioEstado = (sitio.estado ?? "").toLowerCase().trim();
+            const sitioMunicipio = (sitio.municipio ?? "").toLowerCase().trim();
+            
+            // Si ambos filtros están presentes
+            if (estadoLower && municipioLower) {
+              return sitioEstado === estadoLower && sitioMunicipio === municipioLower;
+            }
+            // Si solo hay estado
+            if (estadoLower) {
+              return sitioEstado === estadoLower;
+            }
+            // Si solo hay municipio
+            if (municipioLower) {
+              return sitioMunicipio === municipioLower;
+            }
+            return true;
+          });
+          
+          console.log("📍 Sitios después de filtro región:", sitiosFiltrados.length);
+        }
+
+        // Establecer los sitios filtrados
+        setSitios(sitiosFiltrados);
+
+        // 👇 Ajustar el mapa solo la primera vez para esta categoría
+        if (
+          !hasFittedOnceRef.current &&
+          sitiosFiltrados.length > 0 &&
+          mapRef.current
+        ) {
+          console.log("🗺️ Ajustando mapa a sitios visibles");
+          
+          const coordsParaMapa = sitiosFiltrados.map((sitio) => ({
+            latitude: sitio.latitude as number,
+            longitude: sitio.longitude as number,
+          }));
+
+          // Agregar ubicación del usuario si está disponible
+          if (userLocation) {
+            coordsParaMapa.push(userLocation);
+          }
+
+          // Agregar ruta KML si está disponible y visible
+          if (kmlRoute && showRoute) {
+            coordsParaMapa.push(
+              ...kmlRoute.coordinates.map((coord) => ({
+                latitude: coord.latitude,
+                longitude: coord.longitude,
+              }))
+            );
+          }
+
+          // Ajustar el mapa a todas las coordenadas
+          mapRef.current.fitToCoordinates(coordsParaMapa, {
+            edgePadding: { top: 80, right: 40, bottom: 40, left: 40 },
+            animated: true,
+          });
+
+          hasFittedOnceRef.current = true;
+        }
+
+      } catch (error) {
+        console.error("❌ Error cargando sitios:", error);
+        if (mounted) {
+          setSitios([]);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [
+    categoriaActiva,
+    selectedEstado,
+    selectedMunicipio,
+    sitioId,
+    userLocation,
+    kmlRoute,
+    showRoute
+  ]);
+
+  // Resetear flag cuando cambian los filtros de región
+  useEffect(() => {
+    // Cuando cambia el estado o municipio, permitir nuevo ajuste del mapa
+    if (selectedEstado || selectedMunicipio) {
+      hasFittedOnceRef.current = false;
+    }
+  }, [selectedEstado, selectedMunicipio]);
+
   const toggleFavorito = useCallback(
     async (sitio: Sitio) => {
       if (!userId) {
@@ -335,88 +471,6 @@ export default function Mapa() {
       locationSubRef.current = null;
     };
   }, [kmlRoute]);
-
-  // Cargar sitios por categoría + FILTRAR POR REGIÓN
- useEffect(() => {
-  if (sitioId) return; // Si viene sitioId desde recomendaciones, ya manejamos arriba.
-
-  let mounted = true;
-  (async () => {
-    try {
-      setLoading(true);
-
-      const all = await getSitiosByCategoria(categoriaId);
-
-      // ----- Filtro por región (estado / municipio) -----
-      let filtered = all;
-      const e = (selectedEstado ?? "").toLowerCase().trim();
-      const m = (selectedMunicipio ?? "").toLowerCase().trim();
-
-      if (e || m) {
-        filtered = all.filter((s) => {
-          const se = (s.estado ?? "").toLowerCase().trim();
-          const sm = (s.municipio ?? "").toLowerCase().trim();
-          if (e && m) return se === e && sm === m;
-          if (e) return se === e;
-          if (m) return sm === m;
-          return true;
-        });
-      }
-
-      if (!mounted) return;
-      setSitios(filtered);
-
-      console.log("Sitios cargados (todos):", all.length);
-      console.log("Sitios tras filtro región:", filtered.length);
-
-      // 👇 Solo ajustar UNA vez
-      if (
-        !hasFittedOnceRef.current &&
-        filtered.length > 0 &&
-        mapRef.current
-      ) {
-        const coords = filtered.map((s) => ({
-          latitude: s.latitude as number,
-          longitude: s.longitude as number,
-        }));
-
-        if (userLocation) coords.push(userLocation);
-
-        if (kmlRoute) {
-          coords.push(
-            ...kmlRoute.coordinates.map((c) => ({
-              latitude: c.latitude,
-              longitude: c.longitude,
-            }))
-          );
-        }
-
-        mapRef.current.fitToCoordinates(coords, {
-          edgePadding: { top: 80, right: 40, bottom: 40, left: 40 },
-          animated: true,
-        });
-
-        hasFittedOnceRef.current = true; // ✅ ya no vuelvas a ajustar
-      }
-    } catch (err) {
-      console.log("Error al mostrar los sitios", err);
-    } finally {
-      if (mounted) setLoading(false);
-    }
-  })();
-
-  return () => {
-    mounted = false;
-  };
-}, [
-  categoriaId,
-  kmlRoute,
-  sitioId,
-  userLocation,          // puede seguir aquí, el flag evita el ajuste continuo
-  selectedEstado,
-  selectedMunicipio,
-]);
-
 
   const handleMarkerPress = useCallback((sitio: Sitio) => {
     setSelectedSitio(sitio);
@@ -541,6 +595,66 @@ export default function Mapa() {
         }}
       />
 
+      {/* 🔥 FILTRO DE CATEGORÍAS - MEJORADO */}
+      <Categoriafiltro
+        categoriaSeleccionada={categoriaActiva}
+        onCategoriaChange={async (nuevaCategoriaId) => {
+          // Si es la misma categoría, no hacer nada
+          if (categoriaActiva === nuevaCategoriaId) return;
+
+          console.log("🔄 Cambiando a categoría:", nuevaCategoriaId);
+          
+          // Resetear flags y estados
+          hasFittedOnceRef.current = false;
+          setCargandoSitios(true);
+          setSitios([]); // Limpiar sitios mientras carga
+          setSelectedSitio(null); // Cerrar bottom sheet
+
+          try {
+            // Obtener sitios de la nueva categoría
+            const sitiosNuevaCategoria = await getSitiosByCategoria(nuevaCategoriaId);
+            
+            // Aplicar filtros de región si existen
+            let sitiosFiltrados = sitiosNuevaCategoria;
+            if (selectedEstado || selectedMunicipio) {
+              const estadoLower = (selectedEstado ?? "").toLowerCase().trim();
+              const municipioLower = (selectedMunicipio ?? "").toLowerCase().trim();
+              
+              sitiosFiltrados = sitiosNuevaCategoria.filter((sitio) => {
+                const sitioEstado = (sitio.estado ?? "").toLowerCase().trim();
+                const sitioMunicipio = (sitio.municipio ?? "").toLowerCase().trim();
+                
+                if (estadoLower && municipioLower) {
+                  return sitioEstado === estadoLower && sitioMunicipio === municipioLower;
+                }
+                if (estadoLower) return sitioEstado === estadoLower;
+                if (municipioLower) return sitioMunicipio === municipioLower;
+                return true;
+              });
+            }
+
+            setSitios(sitiosFiltrados);
+            setCategoriaActiva(nuevaCategoriaId);
+            
+            console.log("✅ Sitios cargados para nueva categoría:", sitiosFiltrados.length);
+
+          } catch (error) {
+            console.error("❌ Error cambiando categoría:", error);
+            Alert.alert("Error", "No se pudieron cargar los sitios de esta categoría");
+          } finally {
+            setCargandoSitios(false);
+          }
+        }}
+      />
+
+      {/* Componente temporal para debug */}
+      {/* <View style={{ position: 'absolute', top: 120, left: 10, backgroundColor: 'white', padding: 10, borderRadius: 8, zIndex: 1000 }}>
+        <Text>Categoría: {categoriaActiva}</Text>
+        <Text>Sitios: {sitios.length}</Text>
+        <Text>Estado: {selectedEstado || 'Ninguno'}</Text>
+        <Text>Municipio: {selectedMunicipio || 'Ninguno'}</Text>
+      </View> */}
+
       <MapView
         customMapStyle={CLEAN_STYLE}
         style={styles.map}
@@ -549,7 +663,7 @@ export default function Mapa() {
         showsPointsOfInterest={false}
         showsBuildings={false}
         showsUserLocation
-        showsMyLocationButton
+        showsMyLocationButton={false}
       >
         {/* Mostrar sitios solo si no viene de Recomendaciones */}
         {!sitioId &&

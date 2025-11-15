@@ -1,6 +1,5 @@
 // app/categorias/reserva-hotel.tsx
 import AuthRequiredModal from "@/src/components/AuthRequiredModal";
-import AppHeader from "@/src/components/common/appheader";
 import Loader from "@/src/components/common/loader";
 import { BASE_URL, getSitioById } from "@/src/lib/api";
 import { notificarConfirmacion, programarRecordatorio } from "@/src/lib/notificaciones";
