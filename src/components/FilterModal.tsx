@@ -1,16 +1,15 @@
 // src/components/FilterModal.tsx
-import React from "react";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   Modal,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  Pressable,
 } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-export type CategoryFilter = "all" | "ocio" | "gastro" | "relax";
+export type CategoryFilter = "all" | "ocio" | "gastro" | "relax" | "fre";
 
 type Props = {
   visible: boolean;
@@ -24,6 +23,7 @@ const OPTIONS: { id: CategoryFilter; label: string; icon: string }[] = [
   { id: "ocio", label: "Ocio & Aventura", icon: "run" },
   { id: "gastro", label: "Gastro & Cultura", icon: "silverware-fork-knife" },
   { id: "relax", label: "Relax & Salud Hotel", icon: "spa" },
+  { id: "fre", label: "FreeFire", icon: "earth"},
 ];
 
 export default function FilterModal({

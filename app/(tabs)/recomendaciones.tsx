@@ -48,6 +48,8 @@ const getCategoriaIdFromFilter = (filter: CategoryFilter): number | null => {
       return 2; // Gastro & Cultura
     case "relax":
       return 3; // Relax & Salud Hotel
+    case "fre":
+      return 4; // FreeFire
     case "all":
     default:
       return null; // todas las categorías
@@ -88,6 +90,8 @@ export default function RecomendacionesTab() {
         return "Gastro & Cultura";
       case "relax":
         return "Relax & Salud Hotel";
+      case "fre":
+        return "FreeFire";
       default:
         return "Filtrar";
     }
@@ -262,7 +266,7 @@ export default function RecomendacionesTab() {
               style={[s.btn, s.btnMap]}
               onPress={() =>
                 router.push({
-                  pathname: "/mapa/mapa",
+                  pathname: "/(tabs)/home/mapa/mapa",
                   params: { sitioId: String(item.id) },
                 })
               }

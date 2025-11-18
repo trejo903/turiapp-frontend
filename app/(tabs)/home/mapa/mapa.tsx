@@ -48,6 +48,19 @@ const movedEnough = (
   return meters > 3;
 };
 
+// ===== Helper para formatear ETA =====
+const formatEta = (minutes: number): string => {
+  if (minutes < 60) {
+    return `${minutes} min`;
+  } else if (minutes < 1440) { // menos de 24 horas
+    const hours = minutes / 60;
+    return `${hours.toFixed(1)} h`;
+  } else {
+    const days = minutes / 1440; // 1440 minutos en un día
+    return `${days.toFixed(1)} día${days >= 2 ? 's' : ''}`;
+  }
+};
+
 // Marker memorizado
 const SiteMarker = React.memo(function SiteMarker({
   sitio,
@@ -146,6 +159,9 @@ export default function Mapa() {
     []
   );
 
+  const [eta, setEta] = useState<number | null>(null);
+  const [directionsError, setDirectionsError] = useState<string | null>(null);
+
   // Favoritos
   useEffect(() => {
     let mounted = true;
@@ -166,33 +182,42 @@ export default function Mapa() {
 
   // Sitio específico desde Recomendaciones
   useEffect(() => {
-    const fetchSitioFromRecomendaciones = async () => {
-      try {
-        if (!sitioId) return;
+  const fetchSitioFromRecomendaciones = async () => {
+    try {
+      if (!sitioId) return;
 
-        const sitio = await getSitioById(Number(sitioId));
-        if (sitio) {
-          openSheet(sitio);
+      const sitio = await getSitioById(Number(sitioId));
+      if (!sitio) return;
 
-          if (mapRef.current && sitio.latitude && sitio.longitude) {
-            mapRef.current.animateToRegion(
-              {
-                latitude: Number(sitio.latitude),
-                longitude: Number(sitio.longitude),
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              },
-              800
-            );
-          }
-        }
-      } catch (e) {
-        console.error("❌ Error cargando sitio desde BD:", e);
+      // 1️⃣ Seleccionar categoría del sitio antes de centrar
+      if (sitio.categoria?.id) {
+        setCategoriaActiva(sitio.categoria.id);
+        hasFittedOnceRef.current = false; // permitir ajustar mapa
       }
-    };
 
-    fetchSitioFromRecomendaciones();
-  }, [sitioId]);
+      // 2️⃣ Abrir bottomSheet del sitio seleccionado
+      openSheet(sitio);
+
+      // 3️⃣ Centrar el mapa en ese sitio
+      if (mapRef.current && sitio.latitude && sitio.longitude) {
+        mapRef.current.animateToRegion(
+          {
+            latitude: Number(sitio.latitude),
+            longitude: Number(sitio.longitude),
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          },
+          800
+        );
+      }
+
+    } catch (e) {
+      console.error("❌ Error cargando sitio desde BD:", e);
+    }
+  };
+
+  fetchSitioFromRecomendaciones();
+}, [sitioId]);
 
   // Manejar parámetros legacy (lat/long directo)
   useEffect(() => {
@@ -238,69 +263,80 @@ export default function Mapa() {
     }
   }, [catId]);
 
-  // 🔥 USEFFECT PRINCIPAL - Cargar sitios por categoría y filtrar por región
+  // 🔥 USEFFECT PRINCIPAL - Cargar sitios por categoría y filtrar por región (CORREGIDO)
   useEffect(() => {
-    // Si viene de recomendaciones (sitioId), no cargar por categoría
-    if (sitioId) return;
-
-    // Si no hay categoría activa, no cargar sitios
-    if (!categoriaActiva) return;
-
     let mounted = true;
-    
+
     (async () => {
       try {
         setLoading(true);
-        console.log("🔄 Cargando sitios para categoría:", categoriaActiva);
 
-        // Obtener TODOS los sitios de la categoría seleccionada
-        const allSitios = await getSitiosByCategoria(categoriaActiva);
-        
-        if (!mounted) return;
+        let categoriaACargar = categoriaActiva;
+        let sitiosACargar: Sitio[] = [];
 
-        console.log("✅ Sitios obtenidos de API:", allSitios.length);
+        // CASO 1: Viene de Recomendaciones (sitioId) - Primero obtener el sitio para saber su categoría
+        if (sitioId && !categoriaActiva) {
+          console.log("🔄 Cargando sitio desde Recomendaciones:", sitioId);
+          const sitioFromRecomendaciones = await getSitioById(Number(sitioId));
 
-        // ----- FILTRAR POR REGIÓN (estado / municipio) -----
-        let sitiosFiltrados = allSitios;
-        
-        if (selectedEstado || selectedMunicipio) {
-          const estadoLower = (selectedEstado ?? "").toLowerCase().trim();
-          const municipioLower = (selectedMunicipio ?? "").toLowerCase().trim();
-          
-          sitiosFiltrados = allSitios.filter((sitio) => {
-            const sitioEstado = (sitio.estado ?? "").toLowerCase().trim();
-            const sitioMunicipio = (sitio.municipio ?? "").toLowerCase().trim();
-            
-            // Si ambos filtros están presentes
-            if (estadoLower && municipioLower) {
-              return sitioEstado === estadoLower && sitioMunicipio === municipioLower;
-            }
-            // Si solo hay estado
-            if (estadoLower) {
-              return sitioEstado === estadoLower;
-            }
-            // Si solo hay municipio
-            if (municipioLower) {
-              return sitioMunicipio === municipioLower;
-            }
-            return true;
-          });
-          
-          console.log("📍 Sitios después de filtro región:", sitiosFiltrados.length);
+          if (!mounted) return;
+
+          if (sitioFromRecomendaciones?.categoria?.id) {
+            categoriaACargar = sitioFromRecomendaciones.categoria.id;
+            setCategoriaActiva(categoriaACargar); // Establecer la categoría activa
+
+            // Agregar el sitio seleccionado a la lista
+            sitiosACargar.push(sitioFromRecomendaciones);
+          }
         }
 
-        // Establecer los sitios filtrados
-        setSitios(sitiosFiltrados);
+        // CASO 2: Cargar todos los sitios de la categoría activa
+        if (categoriaACargar) {
+          console.log("🔄 Cargando sitios para categoría:", categoriaACargar);
+          const allSitios = await getSitiosByCategoria(categoriaACargar);
+
+          if (!mounted) return;
+
+          console.log("✅ Sitios obtenidos de API:", allSitios.length);
+
+          // ----- FILTRAR POR REGIÓN (estado / municipio) -----
+          let sitiosFiltrados = allSitios;
+
+          if (selectedEstado || selectedMunicipio) {
+            const estadoLower = (selectedEstado ?? "").toLowerCase().trim();
+            const municipioLower = (selectedMunicipio ?? "").toLowerCase().trim();
+
+            sitiosFiltrados = allSitios.filter((sitio) => {
+              const sitioEstado = (sitio.estado ?? "").toLowerCase().trim();
+              const sitioMunicipio = (sitio.municipio ?? "").toLowerCase().trim();
+
+              if (estadoLower && municipioLower) {
+                return sitioEstado === estadoLower && sitioMunicipio === municipioLower;
+              }
+              if (estadoLower) return sitioEstado === estadoLower;
+              if (municipioLower) return sitioMunicipio === municipioLower;
+              return true;
+            });
+
+            console.log("📍 Sitios después de filtro región:", sitiosFiltrados.length);
+          }
+
+          // Si veníamos de Recomendaciones, usar todos los sitios filtrados
+          // No solo el sitio específico
+          sitiosACargar = sitioId ? sitiosFiltrados : sitiosFiltrados;
+        }
+
+        setSitios(sitiosACargar);
 
         // 👇 Ajustar el mapa solo la primera vez para esta categoría
         if (
           !hasFittedOnceRef.current &&
-          sitiosFiltrados.length > 0 &&
+          sitiosACargar.length > 0 &&
           mapRef.current
         ) {
           console.log("🗺️ Ajustando mapa a sitios visibles");
-          
-          const coordsParaMapa = sitiosFiltrados.map((sitio) => ({
+
+          const coordsParaMapa = sitiosACargar.map((sitio) => ({
             latitude: sitio.latitude as number,
             longitude: sitio.longitude as number,
           }));
@@ -348,7 +384,7 @@ export default function Mapa() {
     categoriaActiva,
     selectedEstado,
     selectedMunicipio,
-    sitioId,
+    sitioId, // ✅ Ahora sitioId dispara la carga pero no la bloquea
     userLocation,
     kmlRoute,
     showRoute
@@ -473,6 +509,8 @@ export default function Mapa() {
   }, [kmlRoute]);
 
   const handleMarkerPress = useCallback((sitio: Sitio) => {
+    setEta(null); // reset para cambiar de sitio
+    setDirectionsError(null); // reset error al cambiar sitio
     setSelectedSitio(sitio);
     setTimeout(() => bottomSheetRef.current?.expand(), 150);
   }, []);
@@ -566,10 +604,17 @@ export default function Mapa() {
     }
   };
 
-  const onDirectionsReady = (result: {
-    coordinates: { latitude: number; longitude: number }[];
-  }) => {
+  const onDirectionsReady = (result: any) => {
     if (!mapRef.current) return;
+
+    // Resetear error si hay resultado exitoso
+    setDirectionsError(null);
+
+    // 🆕 Guardar ETA
+    if (result.duration) {
+      setEta(Math.round(result.duration)); // minutos
+    }
+
     if (result?.coordinates?.length) {
       mapRef.current.fitToCoordinates(result.coordinates, {
         edgePadding: { top: 80, right: 40, bottom: 40, left: 40 },
@@ -578,7 +623,25 @@ export default function Mapa() {
     }
   };
 
+  const onDirectionsError = (error: any) => {
+    console.log("Directions error", error);
+    
+    // Detectar si es error de "no route found"
+    if (error?.message?.includes("ZERO_RESULTS") || 
+        error?.status === "ZERO_RESULTS" ||
+        error?.code === "NOT_FOUND") {
+      setDirectionsError("NO_ROUTE");
+      setEta(null);
+    } else {
+      // Otros errores (API key, network, etc.)
+      setDirectionsError("OTHER");
+      setEta(null);
+    }
+  };
+
   const openSheet = (sitio: Sitio) => {
+    setEta(null); // resetear ETA al abrir de recomendaciones
+    setDirectionsError(null); // resetear error al abrir nuevo sitio
     setSelectedSitio(sitio);
     setTimeout(() => bottomSheetRef.current?.expand(), 200);
   };
@@ -647,14 +710,6 @@ export default function Mapa() {
         }}
       />
 
-      {/* Componente temporal para debug */}
-      {/* <View style={{ position: 'absolute', top: 120, left: 10, backgroundColor: 'white', padding: 10, borderRadius: 8, zIndex: 1000 }}>
-        <Text>Categoría: {categoriaActiva}</Text>
-        <Text>Sitios: {sitios.length}</Text>
-        <Text>Estado: {selectedEstado || 'Ninguno'}</Text>
-        <Text>Municipio: {selectedMunicipio || 'Ninguno'}</Text>
-      </View> */}
-
       <MapView
         customMapStyle={CLEAN_STYLE}
         style={styles.map}
@@ -665,11 +720,10 @@ export default function Mapa() {
         showsUserLocation
         showsMyLocationButton={false}
       >
-        {/* Mostrar sitios solo si no viene de Recomendaciones */}
-        {!sitioId &&
-          sitios.map((s) => (
-            <SiteMarker key={s.id} sitio={s} onPress={handleMarkerPress} />
-          ))}
+        {/* Mostrar todos los sitios siempre, incluso cuando viene de Recomendaciones */}
+        {sitios.map((s) => (
+          <SiteMarker key={s.id} sitio={s} onPress={handleMarkerPress} />
+        ))}
 
         {showRoute && kmlRoute && (
           <Polyline
@@ -701,7 +755,7 @@ export default function Mapa() {
             apikey={process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY!}
             strokeWidth={4}
             onReady={onDirectionsReady}
-            onError={(e) => console.log("Directions error", e)}
+            onError={onDirectionsError}
             resetOnChange={false}
           />
         )}
@@ -771,6 +825,103 @@ export default function Mapa() {
               {/* Nombre */}
               <Text style={styles.contactName}>{selectedSitio.nombre}</Text>
 
+              {/* ETA y mensajes de error */}
+              {eta !== null && (
+                <View
+                  style={{
+                    backgroundColor: "#E8EAF6",
+                    padding: 12,
+                    borderRadius: 10,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 10,
+                    marginTop: -4,
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name={travelMode === "WALKING" ? "walk" : "car"}
+                    size={20}
+                    color="#0d0575ff"
+                  />
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: "600",
+                      color: "#0d0575ff",
+                    }}
+                  >
+                    Llegas en {formatEta(eta)} • {travelMode === "WALKING" ? "caminando" : "en carro"}
+                  </Text>
+                </View>
+              )}
+
+              {directionsError === "NO_ROUTE" && (
+                <View
+                  style={{
+                    backgroundColor: "#FFEBEE",
+                    padding: 12,
+                    borderRadius: 10,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 10,
+                    marginTop: -4,
+                    borderLeftWidth: 4,
+                    borderLeftColor: "#F44336",
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name="swim"
+                    size={20}
+                    color="#F44336"
+                  />
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: "600",
+                      color: "#F44336",
+                      textAlign: "center",
+                    }}
+                  >
+                    ¿Planeas llegar nadando?
+                  </Text>
+                </View>
+              )}
+
+              {directionsError === "OTHER" && (
+                <View
+                  style={{
+                    backgroundColor: "#FFF3E0",
+                    padding: 12,
+                    borderRadius: 10,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 10,
+                    marginTop: -4,
+                    borderLeftWidth: 4,
+                    borderLeftColor: "#FF9800",
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name="alert-circle"
+                    size={20}
+                    color="#FF9800"
+                  />
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: "600",
+                      color: "#FF9800",
+                      textAlign: "center",
+                    }}
+                  >
+                    ¿Planeas llegar nadando?
+                  </Text>
+                </View>
+              )}
+
               {/* Teléfono */}
               {selectedSitio.telefono && (
                 <TouchableOpacity
@@ -821,20 +972,27 @@ export default function Mapa() {
                     style={[
                       styles.modeBtn,
                       travelMode === "DRIVING" && styles.modeBtnActive,
+                      directionsError === "NO_ROUTE" && styles.modeBtnDisabled,
                     ]}
-                    onPress={() => setTravelMode("DRIVING")}
+                    onPress={() => {
+                      setDirectionsError(null); // Resetear error al cambiar modo
+                      setTravelMode("DRIVING");
+                    }}
+                    disabled={directionsError === "NO_ROUTE"}
                   >
                     <MaterialCommunityIcons
                       name="car"
                       size={16}
                       color={
-                        travelMode === "DRIVING" ? "#fff" : "#0d0575ff"
+                        travelMode === "DRIVING" ? "#fff" : 
+                        directionsError === "NO_ROUTE" ? "#ccc" : "#0d0575ff"
                       }
                     />
                     <Text
                       style={[
                         styles.modeText,
                         travelMode === "DRIVING" && styles.modeTextActive,
+                        directionsError === "NO_ROUTE" && styles.modeTextDisabled,
                       ]}
                     >
                       En carro
@@ -844,20 +1002,27 @@ export default function Mapa() {
                     style={[
                       styles.modeBtn,
                       travelMode === "WALKING" && styles.modeBtnActive,
+                      directionsError === "NO_ROUTE" && styles.modeBtnDisabled,
                     ]}
-                    onPress={() => setTravelMode("WALKING")}
+                    onPress={() => {
+                      setDirectionsError(null); // Resetear error al cambiar modo
+                      setTravelMode("WALKING");
+                    }}
+                    disabled={directionsError === "NO_ROUTE"}
                   >
                     <MaterialCommunityIcons
                       name="walk"
                       size={16}
                       color={
-                        travelMode === "WALKING" ? "#fff" : "#0d0575ff"
+                        travelMode === "WALKING" ? "#fff" : 
+                        directionsError === "NO_ROUTE" ? "#ccc" : "#0d0575ff"
                       }
                     />
                     <Text
                       style={[
                         styles.modeText,
                         travelMode === "WALKING" && styles.modeTextActive,
+                        directionsError === "NO_ROUTE" && styles.modeTextDisabled,
                       ]}
                     >
                       Caminando
@@ -1078,8 +1243,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   modeBtnActive: { backgroundColor: "#0d0575ff", borderColor: "#0d0575ff" },
+  modeBtnDisabled: {
+    opacity: 0.5,
+    backgroundColor: "#f5f5f5",
+    borderColor: "#ccc",
+  },
   modeText: { color: "#0d0575ff", fontWeight: "600" },
   modeTextActive: { color: "#fff" },
+  modeTextDisabled: { color: "#ccc" },
 
   actionsRow: {
     flexDirection: "row",
