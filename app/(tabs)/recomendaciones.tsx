@@ -90,8 +90,6 @@ export default function RecomendacionesTab() {
         return "Gastro & Cultura";
       case "relax":
         return "Relax & Salud Hotel";
-      case "fre":
-        return "FreeFire";
       default:
         return "Filtrar";
     }
@@ -280,7 +278,7 @@ export default function RecomendacionesTab() {
             </TouchableOpacity>
 
             {/* Más información */}
-            <Link href={`/sitios/${item.id}`} asChild>
+            <Link href={`/(tabs)/home/sitios/${item.id}`} asChild>
               <TouchableOpacity style={[s.btn, s.btnPrimary]}>
                 <MaterialCommunityIcons
                   name="information-outline"

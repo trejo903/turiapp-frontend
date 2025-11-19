@@ -6,15 +6,15 @@ export default function CategoriaScreen() {
   return (
     <View>
       <Text>Pantalla de categoría</Text>
-      <Link href={`/categorias/reserva`} asChild>
+      <Link href={`/(tabs)/home/categorias/reserva`} asChild>
         <Pressable style={styles.button}>
           <Text>Ir a Reserva</Text>
         </Pressable>
       </Link>
 
-      <Link href={`/categorias/confirmacion`} asChild>
+      <Link href={`/(tabs)/home/categorias/confirmacion`} asChild>
         <Pressable style={styles.button}>
-          <Text style={styles.buttonText}>Ir a Confirmación</Text>
+          <Text>Ir a Confirmación</Text>
         </Pressable>
       </Link>
 

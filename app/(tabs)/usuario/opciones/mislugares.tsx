@@ -131,7 +131,7 @@ export default function MisCompras() {
             <Text style={styles.mapText}>Abrir en mapas</Text>
           </TouchableOpacity>
 
-          <Link href={`/sitios/${item.id}`} asChild>
+          <Link href={`/(tabs)/home/sitios/${item.id}`} asChild>
             <TouchableOpacity style={styles.moreBtn}>
               <Text style={styles.moreText}>Más información</Text>
             </TouchableOpacity>

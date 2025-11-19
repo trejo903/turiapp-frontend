@@ -23,7 +23,6 @@ const OPTIONS: { id: CategoryFilter; label: string; icon: string }[] = [
   { id: "ocio", label: "Ocio & Aventura", icon: "run" },
   { id: "gastro", label: "Gastro & Cultura", icon: "silverware-fork-knife" },
   { id: "relax", label: "Relax & Salud Hotel", icon: "spa" },
-  { id: "fre", label: "FreeFire", icon: "earth"},
 ];
 
 export default function FilterModal({

@@ -168,7 +168,7 @@ export default function MisComentarios() {
           </Text>
           {sitio?.id ? (
             <Link
-              href={{ pathname: "/sitios/[id]", params: { id: String(sitio.id) } }}
+              href={{ pathname: "/(tabs)/home/sitios/[id]", params: { id: String(sitio.id) } }}
               asChild
             >
               <Pressable style={styles.linkBtn}>
