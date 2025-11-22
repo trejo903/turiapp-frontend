@@ -838,7 +838,7 @@ export default function Mapa() {
       <BottomSheet
   ref={bottomSheetRef}
   snapPoints={snapPoints}
-  index={0}
+  index={-1}
   enablePanDownToClose
   onClose={closeSheet}
   backgroundStyle={styles.bottomSheetBackground}
