@@ -96,7 +96,7 @@ type TravelMode = "DRIVING" | "WALKING";
 export default function Mapa() {
   const { user, token } = useAuth();
   const userId = user?.id ?? null;
-  const hasFittedOnceRef = useRef(false);
+  const lastFittedCategoryRef = useRef<number | null>(null);
 
   // Ahora también recibimos estado y municipio
   const {
@@ -192,7 +192,7 @@ export default function Mapa() {
       // 1️⃣ Seleccionar categoría del sitio antes de centrar
       if (sitio.categoria?.id) {
         setCategoriaActiva(sitio.categoria.id);
-        hasFittedOnceRef.current = false; // permitir ajustar mapa
+        
       }
 
       // 2️⃣ Abrir bottomSheet del sitio seleccionado
@@ -328,42 +328,40 @@ export default function Mapa() {
 
         setSitios(sitiosACargar);
 
-        // 👇 Ajustar el mapa solo la primera vez para esta categoría
         if (
-          !hasFittedOnceRef.current &&
-          sitiosACargar.length > 0 &&
-          mapRef.current
-        ) {
-          console.log("🗺️ Ajustando mapa a sitios visibles");
+  categoriaACargar &&                        // hay categoría
+  lastFittedCategoryRef.current !== categoriaACargar && // aún no se ha centrado para esta cat
+  sitiosACargar.length > 0 &&
+  mapRef.current
+) {
+  console.log("🗺️ Ajustando mapa a sitios visibles (cat:", categoriaACargar, ")");
 
-          const coordsParaMapa = sitiosACargar.map((sitio) => ({
-            latitude: sitio.latitude as number,
-            longitude: sitio.longitude as number,
-          }));
+  const coordsParaMapa = sitiosACargar.map((sitio) => ({
+    latitude: sitio.latitude as number,
+    longitude: sitio.longitude as number,
+  }));
 
-          // Agregar ubicación del usuario si está disponible
-          if (userLocation) {
-            coordsParaMapa.push(userLocation);
-          }
+  if (userLocation) {
+    coordsParaMapa.push(userLocation);
+  }
 
-          // Agregar ruta KML si está disponible y visible
-          if (kmlRoute && showRoute) {
-            coordsParaMapa.push(
-              ...kmlRoute.coordinates.map((coord) => ({
-                latitude: coord.latitude,
-                longitude: coord.longitude,
-              }))
-            );
-          }
+  if (kmlRoute && showRoute) {
+    coordsParaMapa.push(
+      ...kmlRoute.coordinates.map((coord) => ({
+        latitude: coord.latitude,
+        longitude: coord.longitude,
+      }))
+    );
+  }
 
-          // Ajustar el mapa a todas las coordenadas
-          mapRef.current.fitToCoordinates(coordsParaMapa, {
-            edgePadding: { top: 80, right: 40, bottom: 40, left: 40 },
-            animated: true,
-          });
+  mapRef.current.fitToCoordinates(coordsParaMapa, {
+    edgePadding: { top: 80, right: 40, bottom: 40, left: 40 },
+    animated: true,
+  });
 
-          hasFittedOnceRef.current = true;
-        }
+  // ✅ Guardar que ya hicimos fit para esta categoría
+  lastFittedCategoryRef.current = categoriaACargar;
+}
 
       } catch (error) {
         console.error("❌ Error cargando sitios:", error);
@@ -390,13 +388,7 @@ export default function Mapa() {
     showRoute
   ]);
 
-  // Resetear flag cuando cambian los filtros de región
-  useEffect(() => {
-    // Cuando cambia el estado o municipio, permitir nuevo ajuste del mapa
-    if (selectedEstado || selectedMunicipio) {
-      hasFittedOnceRef.current = false;
-    }
-  }, [selectedEstado, selectedMunicipio]);
+  
 
   const toggleFavorito = useCallback(
     async (sitio: Sitio) => {
@@ -668,7 +660,6 @@ export default function Mapa() {
           console.log("🔄 Cambiando a categoría:", nuevaCategoriaId);
           
           // Resetear flags y estados
-          hasFittedOnceRef.current = false;
           setCargandoSitios(true);
           setSitios([]); // Limpiar sitios mientras carga
           setSelectedSitio(null); // Cerrar bottom sheet

@@ -12,6 +12,9 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -49,13 +52,15 @@ export default function Index() {
   const router = useRouter();
   const tabBarH = useBottomTabBarHeight();
 
-  const [data, setData] = useState<Categoria[]>([]);
+  const [data, setData] = useState<Categoria[]>([]); // tarjetas visibles
+  const [hotelCat, setHotelCat] = useState<Categoria | null>(null); // categoría Hoteles
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [regions, setRegions] = useState<Region[]>([]);
   const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
   const [regionModalVisible, setRegionModalVisible] = useState(false);
+  const [regionSearch, setRegionSearch] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -65,10 +70,19 @@ export default function Index() {
         // Cargamos categorías y regiones al mismo tiempo
         const [cats, regionesApi] = await Promise.all([
           getCategorias(),
-          getRegiones(), // 👈 nuevo helper
+          getRegiones(),
         ]);
 
-        setData(cats);
+        // Detectar Hoteles y quitarlo de las tarjetas
+        const hoteles = (cats as Categoria[]).find((c) =>
+          c.nombre.toLowerCase().includes("hotel")
+        );
+        setHotelCat(hoteles ?? null);
+
+        const sinHoteles = (cats as Categoria[]).filter(
+          (c) => !c.nombre.toLowerCase().includes("hotel")
+        );
+        setData(sinHoteles);
 
         // “Aplanar” [{estado, municipios:[]}] -> Region[]
         const flat: Region[] = [];
@@ -116,17 +130,49 @@ export default function Index() {
     );
   }
 
-  const openChat = () => {
-    router.push("/(tabs)/home/sitios/chat");
+  // Ir a Hoteles en el mapa (solo por el botón H)
+  const openHoteles = () => {
+    if (!hotelCat) {
+      console.log("Categoría 'Hoteles' no encontrada");
+      return;
+    }
+
+    router.push({
+      pathname: "/(tabs)/home/mapa/mapa",
+      params: {
+        catId: String(hotelCat.id),
+        nombre: hotelCat.nombre,
+        estado: selectedRegion?.estado,
+        municipio: selectedRegion?.municipio,
+      },
+    });
   };
 
-  const openRegionModal = () => setRegionModalVisible(true);
+  // Botón del lado contrario (cambia esta ruta por la que quieras)
+  const openOtherScreen = () => {
+    router.push("/(tabs)/home/sitios/servicio");
+  };
+
+  const openRegionModal = () => {
+    setRegionSearch(""); // limpiar búsqueda al abrir
+    setRegionModalVisible(true);
+  };
   const closeRegionModal = () => setRegionModalVisible(false);
 
   const handleSelectRegion = (reg: Region) => {
     setSelectedRegion(reg);
     closeRegionModal();
   };
+
+  // Filtrado de regiones por texto
+  const filteredRegions = regions.filter((reg) => {
+    if (!regionSearch.trim()) return true;
+    const q = regionSearch.toLowerCase();
+    return (
+      reg.municipio.toLowerCase().includes(q) ||
+      reg.estado.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <View style={{ flex: 1, paddingTop: 20 }}>
@@ -179,7 +225,6 @@ export default function Index() {
                 params: {
                   catId: String(item.id),
                   nombre: item.nombre,
-                  // 👇 enviamos también la región seleccionada
                   estado: selectedRegion?.estado,
                   municipio: selectedRegion?.municipio,
                 },
@@ -210,14 +255,23 @@ export default function Index() {
         ListEmptyComponent={<Text>Sin datos</Text>}
       />
 
-      {/* FAB Chat */}
+      {/* Botón H Hoteles (abajo derecha) */}
       <TouchableOpacity
-        style={[styles.fabChat, { bottom: tabBarH + 16 }]}
-        onPress={openChat}
+        style={[styles.fabHotel, { bottom: tabBarH + 16 }]}
+        onPress={openHoteles}
+        activeOpacity={0.9}
+      >
+        <Text style={styles.hotelText}>H</Text>
+      </TouchableOpacity>
+
+      {/* Botón del lado contrario (abajo izquierda) */}
+      <TouchableOpacity
+        style={[styles.fabOther, { bottom: tabBarH + 16 }]}
+        onPress={openOtherScreen}
         activeOpacity={0.9}
       >
         <MaterialCommunityIcons
-          name="message-text-outline"
+          name="map-search-outline"
           size={24}
           color="#fff"
         />
@@ -230,56 +284,69 @@ export default function Index() {
         animationType="slide"
         onRequestClose={closeRegionModal}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Elegir ubicación</Text>
-              <TouchableOpacity onPress={closeRegionModal}>
-                <MaterialCommunityIcons
-                  name="close"
-                  size={22}
-                  color="#333"
-                />
-              </TouchableOpacity>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Elegir ubicación</Text>
+                <TouchableOpacity onPress={closeRegionModal}>
+                  <MaterialCommunityIcons name="close" size={22} color="#333" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Input para buscar ciudad/estado */}
+              <TextInput
+                style={styles.regionSearchInput}
+                placeholder="Buscar ciudad o estado..."
+                placeholderTextColor="#999"
+                value={regionSearch}
+                onChangeText={setRegionSearch}
+              />
+
+              <ScrollView
+                style={{ maxHeight: 400 }}
+                keyboardShouldPersistTaps="handled"
+              >
+                {filteredRegions.map((reg, idx) => {
+                  const isSelected =
+                    selectedRegion &&
+                    selectedRegion.estado === reg.estado &&
+                    selectedRegion.municipio === reg.municipio;
+
+                  return (
+                    <TouchableOpacity
+                      key={`${reg.estado}-${reg.municipio}-${idx}`}
+                      style={[
+                        styles.regionItem,
+                        isSelected && styles.regionItemSelected,
+                      ]}
+                      onPress={() => handleSelectRegion(reg)}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.regionItemMunicipio}>
+                          {reg.municipio}
+                        </Text>
+                        <Text style={styles.regionItemEstado}>
+                          {reg.estado}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <MaterialCommunityIcons
+                          name="check"
+                          size={18}
+                          color="#0d0575ff"
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
-
-            <ScrollView style={{ maxHeight: 400 }}>
-              {regions.map((reg, idx) => {
-                const isSelected =
-                  selectedRegion &&
-                  selectedRegion.estado === reg.estado &&
-                  selectedRegion.municipio === reg.municipio;
-
-                return (
-                  <TouchableOpacity
-                    key={`${reg.estado}-${reg.municipio}-${idx}`}
-                    style={[
-                      styles.regionItem,
-                      isSelected && styles.regionItemSelected,
-                    ]}
-                    onPress={() => handleSelectRegion(reg)}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.regionItemMunicipio}>
-                        {reg.municipio}
-                      </Text>
-                      <Text style={styles.regionItemEstado}>
-                        {reg.estado}
-                      </Text>
-                    </View>
-                    {isSelected && (
-                      <MaterialCommunityIcons
-                        name="check"
-                        size={18}
-                        color="#0d0575ff"
-                      />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -341,10 +408,32 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 15, fontWeight: "700" },
   cardCta: { fontSize: 12, fontWeight: "600" },
 
-  // FAB de chat
-  fabChat: {
+  // FAB Hoteles (H)
+  fabHotel: {
     position: "absolute",
     right: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#0d0575ff",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  hotelText: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "700",
+  },
+
+  // FAB lado contrario
+  fabOther: {
+    position: "absolute",
+    left: 16,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -379,6 +468,15 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "700",
+  },
+  regionSearchInput: {
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 8,
+    fontSize: 14,
   },
   regionItem: {
     flexDirection: "row",
