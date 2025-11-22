@@ -1,5 +1,8 @@
 // app/(tabs)/recomendaciones.tsx
-import FilterModal, { CategoryFilter } from "@/src/components/FilterModal";
+import FilterModal, {
+  CategoryFilter,
+  SortFilter,
+} from "@/src/components/FilterModal";
 import { BASE_URL } from "@/src/lib/api";
 import { useAuth } from "@/src/state/auth";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -49,7 +52,7 @@ const getCategoriaIdFromFilter = (filter: CategoryFilter): number | null => {
     case "relax":
       return 3; // Relax & Salud Hotel
     case "fre":
-      return 4; // FreeFire
+      return 4; // FreeFire (si la usas)
     case "all":
     default:
       return null; // todas las categorías
@@ -68,8 +71,12 @@ export default function RecomendacionesTab() {
     longitude: number;
   } | null>(null);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+
   const [selectedFilter, setSelectedFilter] =
     useState<CategoryFilter>("all");
+
+  const [selectedSort, setSelectedSort] =
+    useState<SortFilter>("distance"); // Más cercano por defecto
 
   const router = useRouter();
 
@@ -105,6 +112,7 @@ export default function RecomendacionesTab() {
       params.append("lat", String(userLocation.latitude));
       params.append("lng", String(userLocation.longitude));
       params.append("k", "30");
+      params.append("sortBy", selectedSort); // 👈 orden
 
       if (userId) params.append("userId", String(userId));
 
@@ -113,13 +121,7 @@ export default function RecomendacionesTab() {
         params.append("categoriaId", String(categoriaId));
       }
 
-      // Si tu endpoint /recs/nearby no necesita sortBy, lo omitimos.
-      // Si aún lo requiere, puedes poner por ejemplo:
-      // params.append("sortBy", "distance");
-
-      const res = await fetch(
-        `${BASE_URL}/recs/nearby?${params.toString()}`
-      );
+      const res = await fetch(`${BASE_URL}/recs/nearby?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const payload: { total: number; data: any[] } = await res.json();
@@ -151,7 +153,7 @@ export default function RecomendacionesTab() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [userLocation, userId, selectedFilter]);
+  }, [userLocation, userId, selectedFilter, selectedSort]); // 👈 incluye sort
 
   // --- Permiso + ubicación del usuario ---
   useEffect(() => {
@@ -176,10 +178,10 @@ export default function RecomendacionesTab() {
     })();
   }, []);
 
-  // --- Refetch cuando haya ubicación o cambie el filtro ---
+  // --- Refetch cuando haya ubicación o cambie filtros / orden ---
   useEffect(() => {
     if (userLocation) fetchRecs();
-  }, [userLocation, selectedFilter, fetchRecs]);
+  }, [userLocation, selectedFilter, selectedSort, fetchRecs]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -194,11 +196,7 @@ export default function RecomendacionesTab() {
       <View style={s.card}>
         {/* Imagen superior */}
         {uri ? (
-          <Image
-            source={{ uri }}
-            style={s.img}
-            resizeMode="cover"
-          />
+          <Image source={{ uri }} style={s.img} resizeMode="cover" />
         ) : (
           <View style={s.imgPlaceholder}>
             <MaterialCommunityIcons
@@ -234,13 +232,8 @@ export default function RecomendacionesTab() {
             )}
             {typeof item.score === "number" && item.score > 0 && (
               <View style={s.badge}>
-                <MaterialCommunityIcons
-                  name="star-outline"
-                  size={14}
-                />
-                <Text style={s.badgeText}>
-                  {item.score.toFixed(2)}
-                </Text>
+                <MaterialCommunityIcons name="star-outline" size={14} />
+                <Text style={s.badgeText}>{item.score.toFixed(2)}</Text>
               </View>
             )}
             {typeof item.reviewCount === "number" &&
@@ -250,9 +243,7 @@ export default function RecomendacionesTab() {
                     name="message-text-outline"
                     size={14}
                   />
-                  <Text style={s.badgeText}>
-                    {item.reviewCount}
-                  </Text>
+                  <Text style={s.badgeText}>{item.reviewCount}</Text>
                 </View>
               )}
           </View>
@@ -313,9 +304,7 @@ export default function RecomendacionesTab() {
               size={20}
               color="#0d0575ff"
             />
-            <Text style={s.filterButtonText}>
-              {getFilterLabel()}
-            </Text>
+            <Text style={s.filterButtonText}>{getFilterLabel()}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -324,9 +313,7 @@ export default function RecomendacionesTab() {
       {loading ? (
         <View style={s.loading}>
           <ActivityIndicator />
-          <Text style={s.loadingTxt}>
-            Buscando lugares cercanos…
-          </Text>
+          <Text style={s.loadingTxt}>Buscando lugares cercanos…</Text>
         </View>
       ) : (
         <FlatList
@@ -335,25 +322,22 @@ export default function RecomendacionesTab() {
           renderItem={renderItem}
           contentContainerStyle={s.listContent}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           ListEmptyComponent={
-            <Text style={s.empty}>
-              No hay recomendaciones por ahora.
-            </Text>
+            <Text style={s.empty}>No hay recomendaciones por ahora.</Text>
           }
         />
       )}
 
-      {/* Modal de filtros por categoría */}
+      {/* Modal de filtros + orden */}
       <FilterModal
         visible={filterModalVisible}
         onClose={() => setFilterModalVisible(false)}
         selectedFilter={selectedFilter}
-        onFilterChange={(f) => setSelectedFilter(f)}
+        onFilterChange={setSelectedFilter}
+        selectedSort={selectedSort}
+        onSortChange={setSelectedSort}
       />
     </View>
   );

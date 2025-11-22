@@ -30,28 +30,46 @@ export async function apiFetch(path: string,options: RequestInit = {},token?: st
 }
 
 
-export type Sitio = {
-    id:number
-    nombre:string
-    img:string
-    telefono: string
-    estado:string
-    municipio:string
-    cp:string
-    fraccionamiento:string
-    calle:string
-    latitude:number | string
-    longitude:number | string
-    categoriaId:number
-    categoria?: any;
-}
+// Para probar local en emulador Android:
+// export const BASE_URL = "http://10.0.2.2:5001/api";
 
-function normalizeSitioDecimals(s:Sitio):Sitio{
-    return{
-        ...s,
-        latitude: typeof s.latitude === "string" ? Number(s.latitude) : s.latitude,
-        longitude: typeof s.longitude === "string" ? Number(s.longitude) : s.longitude
-    }
+export type SitioImagen = {
+  id: number;
+  sitioId: number;
+  url: string;
+  principal?: boolean;
+};
+
+export type Sitio = {
+  id: number;
+  nombre: string;
+  img: string;
+  telefono: string;
+  estado: string;
+  municipio: string;
+  cp: string;
+  fraccionamiento: string;
+  calle: string;
+  latitude: number | string;
+  longitude: number | string;
+  categoria?: {
+    id: number;
+    nombre: string;
+    img?: string;
+    color?: string;
+    reservable?: boolean;
+  };
+  imagenes?: SitioImagen[];   // 👈 aquí vive la galería
+};
+
+function normalizeSitioDecimals(s: Sitio): Sitio {
+  return {
+    ...s,
+    latitude:
+      typeof s.latitude === "string" ? Number(s.latitude) : s.latitude,
+    longitude:
+      typeof s.longitude === "string" ? Number(s.longitude) : s.longitude,
+  };
 }
 
 export async function getSitioById(id: number): Promise<Sitio> {
@@ -64,20 +82,21 @@ export async function getSitioById(id: number): Promise<Sitio> {
   }
 
   const data: Sitio = await res.json();
-  return normalizeSitioDecimals(data);
+  return normalizeSitioDecimals(data); // 👈 mantiene imagenes
 }
 
+export async function getSitiosByCategoria(
+  categoriaId: number
+): Promise<Sitio[]> {
+  const url = `${BASE_URL}/sitios?categoriaId=${categoriaId}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Get ${url} ${res.status} ${text}`);
+  }
 
-export async function getSitiosByCategoria(categoriaId:number):Promise<Sitio[]> {
-    const url = `${BASE_URL}/sitios?categoriaId=${categoriaId}`
-    const res  = await fetch(url)
-    if(!res.ok){
-        const text = await res.text().catch(()=>"");
-        throw new Error(`Get ${url} ${res.status} ${text}`)
-    }
-
-    const data:Sitio[] = await res.json()
-    return data.map(normalizeSitioDecimals)
+  const data: Sitio[] = await res.json();
+  return data.map(normalizeSitioDecimals); // 👈 igual, mantiene imagenes
 }
 
 
@@ -257,3 +276,6 @@ export async function getRegiones() {
   if (!res.ok) throw new Error("No se pudieron cargar las regiones");
   return res.json(); // devuelve RegionApi[]
 }
+
+
+
