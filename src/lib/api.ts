@@ -272,7 +272,7 @@ export async function cancelarReservaFrontend(reserva: ReservaData & { id: numbe
 
 
 export async function getRegiones() {
-  const res = await fetch(`${BASE_URL}/sitios/regiones`);
+  const res = await fetch(`${BASE_URL}/sitios/estados-municipios`);
   if (!res.ok) throw new Error("No se pudieron cargar las regiones");
   return res.json(); // devuelve RegionApi[]
 }
