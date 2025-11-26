@@ -5,12 +5,12 @@ import { useAuth } from "@/src/state/auth";
 import * as Notifications from "expo-notifications";
 import { useEffect, useState } from "react";
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 
@@ -36,34 +36,26 @@ type Reserva = {
   transporte: boolean;
   sitio_id: number;
 };
- 
+
 export default function MisReservas() {
-  const { user, token } = useAuth(); // 👈 OBTENER TAMBIÉN EL TOKEN
+  const { user } = useAuth();
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [markedDates, setMarkedDates] = useState<any>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  // 🔍 Cargar reservas del backend - CON AUTENTICACIÓN
+  // 🔍 Cargar reservas del backend
   useEffect(() => {
-    if (!user?.id || !token) return; // 👈 VERIFICAR QUE HAY TOKEN
+    if (!user?.id) return;
 
     const fetchReservas = async () => {
       try {
-        const res = await fetch(`${BASE_URL}/reservas`, {
-          headers: {
-            Authorization: `Bearer ${token}`, // 👈 ENVIAR TOKEN
-          },
-        });
-        
-        if (!res.ok) {
-          throw new Error(`Error ${res.status}: ${await res.text()}`);
-        }
-        
+        const res = await fetch(`${BASE_URL}/reservas?usuario_id=${user.id}`);
         const data = await res.json();
         setReservas(data);
 
-        // 🗓️ Crear marcas para el calendario (código existente)
+        // 🗓️ Crear marcas para el calendario
         const marks: any = {};
+
         data.forEach((r: Reserva) => {
           if (r.tipo === "hotel" && r.fecha_entrada && r.fecha_salida) {
             const start = new Date(r.fecha_entrada);
@@ -93,12 +85,11 @@ export default function MisReservas() {
         setMarkedDates(marks);
       } catch (err) {
         console.error("❌ Error al obtener reservas:", err);
-        Alert.alert("Error", "No se pudieron cargar las reservas");
       }
     };
 
     fetchReservas();
-  }, [user, token]); // 👈 AGREGAR token como dependencia
+  }, [user]);
 
   // 🔔 Programar recordatorio 2 horas antes de la reserva - CORREGIDO
   const scheduleNotification = async (reserva: Reserva) => {
