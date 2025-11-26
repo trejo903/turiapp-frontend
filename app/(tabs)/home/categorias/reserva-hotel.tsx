@@ -106,8 +106,7 @@ export default function ReservaHotelScreen() {
     }
 
     const reservaData: any = {
-      tipo: "hotel",
-      usuario_id: Number(userId),
+      tipo: "hotel", 
       sitio_id: Number(sitioId),
       nombre: nombre.trim(),
       telefono: telefono.trim(),

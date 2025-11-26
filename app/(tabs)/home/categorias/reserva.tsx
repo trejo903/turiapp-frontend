@@ -1,6 +1,5 @@
 // app/categorias/reserva.tsx
 import AuthRequiredModal from "@/src/components/AuthRequiredModal";
-import AppHeader from "@/src/components/common/appheader";
 import Loader from "@/src/components/common/loader";
 import { BASE_URL, getSitioById } from "@/src/lib/api";
 import { notificarConfirmacion, programarRecordatorio } from "@/src/lib/notificaciones";
@@ -89,8 +88,7 @@ export default function ReservaScreen() {
     }
 
     const reservaData: any = {
-      tipo: "restaurante",
-      usuario_id: Number(userId),
+      tipo: "restaurante", 
       sitio_id: Number(sitioId),
       nombre: nombre.trim(),
       telefono: telefono.trim(),
