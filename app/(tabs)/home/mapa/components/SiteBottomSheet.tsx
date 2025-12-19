@@ -1,5 +1,6 @@
 import React from "react";
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import BottomSheet, { BottomSheetMethods, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Link } from "expo-router";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -11,6 +12,7 @@ import { formatEta, formatImageUrl } from "../utils";
 import { SitioWithImgs, TravelMode } from "../types";
 
 type Props = {
+  bottomSheetRef: React.RefObject<BottomSheetMethods | null>;
   bottomSheetRef: React.RefObject<BottomSheet>;
   snapPoints: string[];
   selectedSitio: SitioWithImgs | null;
