@@ -11,6 +11,7 @@ import { ANARANJADOS_CIMA_KML, KMLRoute, parseKML } from "@/src/lib/kmlParser";
 import { useAuth } from "@/src/state/auth";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { BottomSheetMethods } from "@gorhom/bottom-sheet";
+import BottomSheet from "@gorhom/bottom-sheet";
 import * as Location from "expo-location";
 import { Stack, useLocalSearchParams } from "expo-router";
 import React, {
