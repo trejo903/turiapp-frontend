@@ -8,8 +8,8 @@ import { ScrollView } from "react-native-gesture-handler";
 
 import { KMLRoute } from "@/src/lib/kmlParser";
 
-import { formatEta, formatImageUrl } from "../utils";
-import { SitioWithImgs, TravelMode } from "../types";
+import { formatEta, formatImageUrl } from "@/src/features/mapa/utils";
+import { SitioWithImgs, TravelMode } from "@/src/features/mapa/types";
 
 type Props = {
   bottomSheetRef: React.RefObject<BottomSheetMethods | null>;
