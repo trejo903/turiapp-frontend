@@ -51,7 +51,6 @@ const movedEnough = (
 export default function Mapa() {
   const { user, token } = useAuth();
   const userId = user?.id ?? null;
-  const lastFittedCategoryRef = useRef<number | null>(null);
 
   // Ahora también recibimos estado y municipio
   const {
@@ -88,7 +87,7 @@ export default function Mapa() {
   const [selectedSitio, setSelectedSitio] = useState<SitioWithImgs | null>(
     null
   );
-  const [activeImage, setActiveImage] = useState<string | null>(null); // 👈 imagen actual
+  const [activeImage, setActiveImage] = useState<string | null>(null);
 
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
@@ -116,6 +115,9 @@ export default function Mapa() {
 
   const [eta, setEta] = useState<number | null>(null);
   const [directionsError, setDirectionsError] = useState<string | null>(null);
+
+  // Ref para evitar refits innecesarios (categoria + estado + municipio)
+  const lastFittedKeyRef = useRef<string | null>(null);
 
   // Favoritos
   useEffect(() => {
@@ -220,7 +222,7 @@ export default function Mapa() {
     }
   }, [catId]);
 
-  // 🔥 USEFFECT PRINCIPAL - Cargar sitios por categoría y filtrar por región
+  // 🔥 USEEFFECT PRINCIPAL - Cargar sitios por categoría y filtrar por región
   useEffect(() => {
     let mounted = true;
 
@@ -265,9 +267,7 @@ export default function Mapa() {
               .trim();
 
             sitiosFiltrados = allSitios.filter((sitio) => {
-              const sitioEstado = (sitio.estado ?? "")
-                .toLowerCase()
-                .trim();
+              const sitioEstado = (sitio.estado ?? "").toLowerCase().trim();
               const sitioMunicipio = (sitio.municipio ?? "")
                 .toLowerCase()
                 .trim();
@@ -294,28 +294,38 @@ export default function Mapa() {
 
         setSitios(sitiosACargar);
 
+        // 🔑 Key única por categoría + estado + municipio
+        const fitKey =
+          categoriaACargar != null
+            ? `${categoriaACargar}-${selectedEstado ?? "ALL"}-${
+                selectedMunicipio ?? "ALL"
+              }`
+            : null;
+
         if (
           categoriaACargar &&
-          lastFittedCategoryRef.current !== categoriaACargar &&
+          fitKey !== lastFittedKeyRef.current &&
           sitiosACargar.length > 0 &&
           mapRef.current
         ) {
           console.log(
             "🗺️ Ajustando mapa a sitios visibles (cat:",
             categoriaACargar,
+            ", estado:",
+            selectedEstado,
+            ", municipio:",
+            selectedMunicipio,
             ")"
           );
 
+          // Siempre empezamos con solo los sitios
           const coordsParaMapa = sitiosACargar.map((sitio) => ({
             latitude: sitio.latitude as number,
             longitude: sitio.longitude as number,
           }));
 
-          if (userLocation) {
-            coordsParaMapa.push(userLocation);
-          }
-
-          if (kmlRoute && showRoute) {
+          // Solo agregamos la ruta KML si NO se está filtrando por ciudad
+          if (!selectedEstado && !selectedMunicipio && kmlRoute && showRoute) {
             coordsParaMapa.push(
               ...kmlRoute.coordinates.map((coord) => ({
                 latitude: coord.latitude,
@@ -329,7 +339,8 @@ export default function Mapa() {
             animated: true,
           });
 
-          lastFittedCategoryRef.current = categoriaACargar;
+          // Guardamos la combinación para no repetir ajustes innecesarios
+          lastFittedKeyRef.current = fitKey;
         }
       } catch (error) {
         console.error("❌ Error cargando sitios:", error);
@@ -347,7 +358,6 @@ export default function Mapa() {
     selectedEstado,
     selectedMunicipio,
     sitioId,
-    userLocation,
     kmlRoute,
     showRoute,
   ]);
@@ -396,7 +406,7 @@ export default function Mapa() {
     setKmlRoute(route);
   }, []);
 
-  // Ubicación del usuario
+  // ✅ Ubicación del usuario SIN recenter automático
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -420,25 +430,7 @@ export default function Mapa() {
       };
       setUserLocation(cur);
 
-      if (kmlRoute && kmlRoute.coordinates.length > 0) {
-        const allCoords = [
-          ...kmlRoute.coordinates.map((c) => ({
-            latitude: c.latitude,
-            longitude: c.longitude,
-          })),
-          cur,
-        ];
-        mapRef.current?.fitToCoordinates(allCoords, {
-          edgePadding: { top: 80, right: 40, bottom: 40, left: 40 },
-          animated: true,
-        });
-      } else {
-        mapRef.current?.animateToRegion(
-          { ...cur, latitudeDelta: 0.03, longitudeDelta: 0.03 },
-          600
-        );
-      }
-
+      // Solo actualizamos la ubicación, sin mover el mapa.
       locationSubRef.current = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.Balanced,
@@ -460,7 +452,7 @@ export default function Mapa() {
       locationSubRef.current?.remove();
       locationSubRef.current = null;
     };
-  }, [kmlRoute]);
+  }, []);
 
   const handleMarkerPress = useCallback((sitio: SitioWithImgs) => {
     setEta(null);
