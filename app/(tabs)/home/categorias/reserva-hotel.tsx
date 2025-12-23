@@ -105,10 +105,10 @@ export default function ReservaHotelScreen() {
       return;
     }
 
-    const reservaData: any = {
+    const reservaData = {
       tipo: "hotel",
-      usuario_id: Number(userId),
-      sitio_id: Number(sitioId),
+      sitioId: Number(sitioId),          // ✅ camelCase
+      email: email.trim() || undefined,
       nombre: nombre.trim(),
       telefono: telefono.trim(),
       transporte: true,
@@ -116,10 +116,12 @@ export default function ReservaHotelScreen() {
       fecha_salida: fechaSalida,
       adultos: Number(adultos),
       menores: menores ? Number(menores) : 0,
-      precio_total: precioTotal,
     };
 
-    if (email.trim().length > 0) reservaData.email = email.trim();
+    if (email.trim()) {
+      reservaData.email = email.trim();
+    }
+
 
     console.log("📦 Datos enviados al backend:", reservaData);
 
@@ -157,7 +159,7 @@ export default function ReservaHotelScreen() {
       );
       router.back();
     } catch (error) {
-      console.log("❌ Error completo:", error);
+      console.log("❌ Error completoito:", error);
       Alert.alert("Error", "No se pudo realizar la reserva");
     }
   };

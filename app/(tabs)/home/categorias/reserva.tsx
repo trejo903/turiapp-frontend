@@ -1,6 +1,5 @@
 // app/categorias/reserva.tsx
 import AuthRequiredModal from "@/src/components/AuthRequiredModal";
-import AppHeader from "@/src/components/common/appheader";
 import Loader from "@/src/components/common/loader";
 import { BASE_URL, getSitioById } from "@/src/lib/api";
 import { notificarConfirmacion, programarRecordatorio } from "@/src/lib/notificaciones";
@@ -88,19 +87,18 @@ export default function ReservaScreen() {
       return;
     }
 
-    const reservaData: any = {
+    const reservaData = {
       tipo: "restaurante",
-      usuario_id: Number(userId),
-      sitio_id: Number(sitioId),
+      sitioId: Number(sitioId),          // ✅ camelCase
       nombre: nombre.trim(),
       telefono: telefono.trim(),
-      email: email.trim(),
+      email: email.trim() || undefined,
       transporte: true,
       fecha,
       personas: Number(personas),
       menores: menores ? Number(menores) : 0,
-      precio_total: precioTotal,
     };
+
 
     console.log("📦 Datos enviados al backend:", reservaData);
 
@@ -132,7 +130,7 @@ export default function ReservaScreen() {
       );
       router.back();
     } catch (error) {
-      console.log("❌ Error completo:", error);
+      console.log("❌ Error completito:", error);
       Alert.alert("Error", "No se pudo realizar la reserva");
     }
   };

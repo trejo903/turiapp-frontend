@@ -5,12 +5,12 @@ import { useAuth } from "@/src/state/auth";
 import * as Notifications from "expo-notifications";
 import { useEffect, useState } from "react";
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 
@@ -34,7 +34,7 @@ type Reserva = {
   nombre: string;
   telefono: string;
   transporte: boolean;
-  sitio_id: number;
+  sitioId: number;
 };
 
 export default function MisReservas() {
@@ -49,7 +49,7 @@ export default function MisReservas() {
 
     const fetchReservas = async () => {
       try {
-        const res = await fetch(`${BASE_URL}/reservas?usuario_id=${user.id}`);
+        const res = await fetch(`${BASE_URL}/reservas?usuarioId=${user.id}`);
         const data = await res.json();
         setReservas(data);
 

@@ -1,7 +1,7 @@
 import { cancelarRecordatorio, notificarConfirmacion, programarRecordatorio } from "@/src/lib/notificaciones";
 
 
-export const BASE_URL = "https://turiapp-backend.onrender.com/api";
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000/api";
 
 
 
