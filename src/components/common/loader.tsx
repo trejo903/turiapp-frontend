@@ -16,3 +16,5 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   message: { marginTop: 12, fontSize: 14, color: '#555', textAlign: 'center' }
 });
+
+//prueba
