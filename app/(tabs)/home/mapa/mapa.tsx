@@ -31,8 +31,8 @@ import MapView, { Marker, Polyline } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 import CLEAN_STYLE from "../../../../assets/map-style-clean.json";
 import Categoriafiltro from "./categoriaFiltro";
-import SiteBottomSheet from "./components/SiteBottomSheet";
-import SiteMarker from "./components/SiteMarker";
+import SiteBottomSheet from "../../../../src/components/mapa/SiteBottomSheet";
+import SiteMarker from "../../../../src/components/mapa/SiteMarker";
 import { formatImageUrl } from "@/src/features/mapa/utils";
 import { SitioWithImgs, TravelMode } from "@/src/features/mapa/types";
 
