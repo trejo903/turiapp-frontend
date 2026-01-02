@@ -1,9 +1,13 @@
 // app/(tabs)/usuario/opciones/misreservas.tsx
 // @ts-ignore — algunos tipos de react-native-calendars no están publicados
 import { BASE_URL } from "@/src/lib/api";
+import {
+  normalizeReservasResponse,
+  type Reserva,
+} from "@/src/schemas/reservas";
 import { useAuth } from "@/src/state/auth";
 import * as Notifications from "expo-notifications";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -14,49 +18,40 @@ import {
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 
-// 📲 Configuración de notificaciones locales - CORREGIDO
+// 📲 Configuración de notificaciones locales
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
     shouldShowBanner: true,
-    shouldShowList: true, // ← AGREGAR ESTA PROPIEDAD FALTANTE
+    shouldShowList: true,
   }),
 });
 
-type Reserva = {
-  id: number;
-  tipo: string;
-  fecha?: string;
-  fecha_entrada?: string;
-  fecha_salida?: string;
-  nombre: string;
-  telefono: string;
-  transporte: boolean;
-  sitioId: number;
-};
-
 export default function MisReservas() {
   const { user } = useAuth();
+
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [markedDates, setMarkedDates] = useState<any>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  // 🔍 Cargar reservas del backend
+  // 🔍 Cargar reservas del backend (y validar con Zod)
   useEffect(() => {
     if (!user?.id) return;
 
     const fetchReservas = async () => {
       try {
         const res = await fetch(`${BASE_URL}/reservas?usuarioId=${user.id}`);
-        const data = await res.json();
-        setReservas(data);
+        const raw = await res.json();
+
+        const list = normalizeReservasResponse(raw); // ✅ Zod aquí
+        setReservas(list);
 
         // 🗓️ Crear marcas para el calendario
         const marks: any = {};
 
-        data.forEach((r: Reserva) => {
+        list.forEach((r) => {
           if (r.tipo === "hotel" && r.fecha_entrada && r.fecha_salida) {
             const start = new Date(r.fecha_entrada);
             const end = new Date(r.fecha_salida);
@@ -89,22 +84,26 @@ export default function MisReservas() {
     };
 
     fetchReservas();
-  }, [user]);
+  }, [user?.id]);
 
-  // 🔔 Programar recordatorio 2 horas antes de la reserva - CORREGIDO
+  // 🔔 Programar recordatorio 2 horas antes
   const scheduleNotification = async (reserva: Reserva) => {
-    const fechaAlerta = new Date(
-      reserva.tipo === "hotel"
-        ? reserva.fecha_entrada || new Date()
-        : reserva.fecha || new Date()
-    );
+    const dateStr =
+      reserva.tipo === "hotel" ? reserva.fecha_entrada ?? null : reserva.fecha ?? null;
 
-    const triggerSeconds = Math.max(
-      0,
-      (fechaAlerta.getTime() - Date.now() - 2 * 60 * 60 * 1000) / 1000
-    );
+    if (!dateStr) {
+      Alert.alert("Sin fecha", "Esta reserva no tiene fecha para recordatorio.");
+      return;
+    }
 
-    // CORRECCIÓN: Agregar el tipo de trigger
+    const fechaAlerta = new Date(dateStr);
+
+    let triggerSeconds =
+      (fechaAlerta.getTime() - Date.now() - 2 * 60 * 60 * 1000) / 1000;
+
+    // expo-notifications suele requerir >= 1 segundo
+    triggerSeconds = Math.max(1, Math.ceil(triggerSeconds));
+
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "Recordatorio de reserva",
@@ -112,10 +111,8 @@ export default function MisReservas() {
           reserva.tipo === "hotel" ? "de hotel" : "de restaurante"
         } hoy a las ${fechaAlerta.toLocaleTimeString()}.`,
       },
-      trigger: { 
-        seconds: triggerSeconds,
-        type: 'timeInterval' // ← AGREGAR ESTA PROPIEDAD
-      } as Notifications.TimeIntervalNotificationTriggerInput,
+      // ✅ sin "type", así evita el error de tipos
+      trigger: { seconds: triggerSeconds } as Notifications.TimeIntervalTriggerInput,
     });
 
     Alert.alert("🔔 Notificación programada", "Se te recordará antes del evento");
@@ -126,23 +123,29 @@ export default function MisReservas() {
     setSelectedDate(day.dateString);
   };
 
-  // Filtrar reservas del día seleccionado
-  const reservasDelDia = reservas.filter((r) => {
-    if (r.tipo === "hotel" && r.fecha_entrada && r.fecha_salida) {
-      const start = r.fecha_entrada.split("T")[0];
-      const end = r.fecha_salida.split("T")[0];
-      return selectedDate! >= start && selectedDate! <= end;
-    } else if (r.fecha) {
-      return r.fecha.split("T")[0] === selectedDate;
-    }
-    return false;
-  });
+  // ✅ Filtrar reservas del día seleccionado
+  const reservasDelDia = useMemo(() => {
+    if (!selectedDate) return [];
+
+    return reservas.filter((r) => {
+      if (r.tipo === "hotel" && r.fecha_entrada && r.fecha_salida) {
+        const start = r.fecha_entrada.split("T")[0];
+        const end = r.fecha_salida.split("T")[0];
+        return selectedDate >= start && selectedDate <= end;
+      }
+
+      if (r.fecha) {
+        return r.fecha.split("T")[0] === selectedDate;
+      }
+
+      return false;
+    });
+  }, [reservas, selectedDate]);
 
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Mis Reservas</Text>
 
-      {/* 🗓️ Calendario */}
       <Calendar
         markedDates={{
           ...markedDates,
@@ -156,24 +159,23 @@ export default function MisReservas() {
         }}
       />
 
-      {/* 📋 Lista de reservas del día */}
       {selectedDate && reservasDelDia.length > 0 ? (
         reservasDelDia.map((reserva) => (
           <View key={reserva.id} style={styles.card}>
             <Text style={styles.cardTitle}>
               {reserva.tipo === "hotel" ? "🏨 Hotel" : "🍽️ Restaurante"}
             </Text>
+
             <Text style={styles.cardText}>
               Fecha:{" "}
               {reserva.tipo === "hotel"
-                ? `${new Date(
-                    reserva.fecha_entrada!
-                  ).toLocaleDateString()} → ${new Date(
+                ? `${new Date(reserva.fecha_entrada!).toLocaleDateString()} → ${new Date(
                     reserva.fecha_salida!
                   ).toLocaleDateString()}`
                 : new Date(reserva.fecha!).toLocaleString()}
             </Text>
-            <Text style={styles.cardText}>Nombre: {reserva.nombre}</Text>
+
+            <Text style={styles.cardText}>Nombre: {reserva.nombre ?? "-"}</Text>
             <Text style={styles.cardText}>
               Transporte: {reserva.transporte ? "Sí" : "No"}
             </Text>
