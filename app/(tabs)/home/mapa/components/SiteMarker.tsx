@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Marker } from "react-native-maps";
+import { SitioWithImgs } from "@/src/features/mapa/types";
 
-import { SitioWithImgs } from "../types";
 
 type Props = {
   sitio: SitioWithImgs;
