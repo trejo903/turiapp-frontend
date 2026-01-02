@@ -1,4 +1,4 @@
-import Loader from "@/src/components/common/Loader";
+import Loader from "@/src/components/common/loader";
 import { createOpinionNoAuth, getOpinionesBySitio, getSitioById, OpinionApi, Sitio } from "@/src/lib/api";
 import { useAuth } from "@/src/state/auth";
 import { router, useLocalSearchParams } from "expo-router";
