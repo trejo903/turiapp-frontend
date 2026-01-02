@@ -5,27 +5,25 @@ import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 export default function UsuarioIndex() {
-  const { isAuthenticated, hasValidToken, user } = useAuth();
+  const token = useAuth((s) => s.token);
+  const user = useAuth((s) => s.user);
+  const hasValidToken = useAuth((s) => s.hasValidToken);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (isAuthenticated && hasValidToken()) {
-        // ✅ Si ya hay sesión → ir directo al perfil
-        router.replace({
-          pathname: "/(tabs)/usuario/perfil",
-          params: {
-            userId: String(user?.id ?? ""),
-            email: String(user?.correo ?? ""),
-          },
-        });
-      } else {
-        // ❌ Si no hay sesión → ir al login
-        router.replace("/(tabs)/usuario/login");
-      }
-    }, 120);
+    const ok = !!token && hasValidToken();
 
-    return () => clearTimeout(timeout);
-  }, [isAuthenticated]);
+    if (ok) {
+      router.replace({
+        pathname: "/(tabs)/usuario/perfil",
+        params: {
+          userId: String(user?.id ?? ""),
+          email: String(user?.correo ?? ""),
+        },
+      });
+    } else {
+      router.replace("/(tabs)/usuario/login");
+    }
+  }, [token]); // deps simples
 
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>

@@ -53,7 +53,46 @@ export const useAuth = create<AuthState>()(
     {
       name: "auth",
       storage: createJSONStorage(() => secureStorage),
-      partialize: (s) => ({ user: s.user, token: s.token }),
+
+      // ✅ guarda también isAuthenticated
+      partialize: (s) => ({
+        user: s.user,
+        token: s.token,
+        isAuthenticated: s.isAuthenticated,
+      }),
+
+      // ✅ al rehidratar: ajusta isAuthenticated según token válido
+      onRehydrateStorage: () => (state, error) => {
+        if (!state) return;
+
+        const t = state.token;
+        if (!t) {
+          // sin token => fuera
+          state.logout();
+          return;
+        }
+
+        try {
+          const { exp } = jwtDecode<JwtPayload>(t);
+          // si no hay exp, lo consideramos válido (como tu lógica)
+          if (!exp) {
+            // marca sesión como activa (por si venía false)
+            state.login({ user: state.user as any, token: t });
+            return;
+          }
+
+          const now = Math.floor(Date.now() / 1000);
+          if (exp > now) {
+            // válido => asegura bandera en true
+            state.login({ user: state.user as any, token: t });
+          } else {
+            // expirado => limpia
+            state.logout();
+          }
+        } catch {
+          state.logout();
+        }
+      },
     }
   )
 );
