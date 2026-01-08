@@ -1,14 +1,23 @@
 // src/schemas/reservas.ts
 import { z } from "zod";
-import { usuarioResponseSchema } from "./usuario";
 import { sitioSchema } from "./sitios.schema";
+import { usuarioResponseSchema } from "./usuario";
 
 // ✅ Acepta Date o string y SIEMPRE lo deja como string ISO (datetime)
 const isoDate = z.preprocess((v) => {
   if (v instanceof Date) return v.toISOString();
-  if (typeof v === "string") return v;
+
+  if (typeof v === "string") {
+    // Si viene solo DATE (YYYY-MM-DD), conviértelo a ISO
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      return new Date(v + "T00:00:00.000Z").toISOString();
+    }
+    return v; // ISO normal
+  }
+
   return v;
 }, z.string().datetime());
+
 
 export const ReservaSchema = z
   .object({

@@ -30,61 +30,95 @@ Notifications.setNotificationHandler({
 });
 
 export default function MisReservas() {
-  const { user } = useAuth();
-
+  const { user, token } = useAuth();
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [markedDates, setMarkedDates] = useState<any>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // 🔍 Cargar reservas del backend (y validar con Zod)
-  useEffect(() => {
-    if (!user?.id) return;
+  const fetchReservas = async () => {
+    if (!user || !token) {
+      console.log("❌ No hay usuario o token");
+      setReservas([]);
+      setLoading(false);
+      return;
+    }
 
-    const fetchReservas = async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/reservas?usuarioId=${user.id}`);
-        const raw = await res.json();
+    try {
+      console.log("🔍 Obteniendo reservas para usuario:", user.id);
+      console.log("🔑 Token disponible:", !!token);
+      
+      const response = await fetch(`${BASE_URL}/reservas`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-        const list = normalizeReservasResponse(raw); // ✅ Zod aquí
-        setReservas(list);
-
-        // 🗓️ Crear marcas para el calendario
-        const marks: any = {};
-
-        list.forEach((r) => {
-          if (r.tipo === "hotel" && r.fecha_entrada && r.fecha_salida) {
-            const start = new Date(r.fecha_entrada);
-            const end = new Date(r.fecha_salida);
-            const current = new Date(start);
-
-            while (current <= end) {
-              const dateKey = current.toISOString().split("T")[0];
-              marks[dateKey] = {
-                ...(marks[dateKey] || {}),
-                marked: true,
-                color: "#007AFF",
-                textColor: "#fff",
-              };
-              current.setDate(current.getDate() + 1);
-            }
-          } else if (r.fecha) {
-            const dateKey = r.fecha.split("T")[0];
-            marks[dateKey] = {
-              ...(marks[dateKey] || {}),
-              marked: true,
-              dotColor: "#FF9500",
-            };
-          }
-        });
-
-        setMarkedDates(marks);
-      } catch (err) {
-        console.error("❌ Error al obtener reservas:", err);
+      console.log("📡 Response status:", response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log("❌ Error del servidor:", errorText);
+        throw new Error(`Error ${response.status}: ${errorText}`);
       }
-    };
 
+      const raw = await response.json();
+      console.log("📦 Datos recibidos del backend:", raw);
+
+      // Normalizar con Zod
+      const list = normalizeReservasResponse(raw);
+      console.log("✅ Reservas normalizadas:", list.length);
+      
+      setReservas(list);
+
+      // 🗓️ Crear marcas para el calendario
+      const marks: any = {};
+      list.forEach((r) => {
+        if (r.tipo === "hotel" && r.fecha_entrada && r.fecha_salida) {
+          const start = new Date(r.fecha_entrada);
+          const end = new Date(r.fecha_salida);
+          const current = new Date(start);
+
+          while (current <= end) {
+            const dateKey = current.toISOString().split("T")[0];
+            marks[dateKey] = {
+              marked: true,
+              color: "#007AFF",
+              textColor: "#fff",
+            };
+            current.setDate(current.getDate() + 1);
+          }
+        } else if (r.fecha) {
+          const dateKey = r.fecha.split("T")[0];
+          marks[dateKey] = {
+            marked: true,
+            dotColor: "#FF9500",
+          };
+        }
+      });
+
+      setMarkedDates(marks);
+    } catch (err) {
+      console.error("❌ Error al obtener reservas:", err);
+      Alert.alert("Error", "No se pudieron cargar las reservas");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
     fetchReservas();
-  }, [user?.id]);
+  }, [user?.id, token]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchReservas();
+  };
 
   // 🔔 Programar recordatorio 2 horas antes
   const scheduleNotification = async (reserva: Reserva) => {
