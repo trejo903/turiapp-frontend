@@ -4,14 +4,12 @@ import { BASE_URL } from "@/src/lib/api";
 import { normalizeReservasResponse, type Reserva } from "@/src/schemas/reservas";
 import { useAuth } from "@/src/state/auth";
 import * as Notifications from "expo-notifications";
+import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
-  ScrollView,
+  Alert, Pressable, ScrollView,
   StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+  Text
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 
@@ -191,7 +189,23 @@ export default function MisReservas() {
 
       {selectedDate && reservasDelDia.length > 0 ? (
         reservasDelDia.map((reserva) => (
-          <View key={reserva.id} style={styles.card}>
+          <Pressable
+            key={reserva.id}
+            style={({ pressed }) => [
+              styles.card,
+              pressed && { opacity: 0.85 },
+            ]}
+            onPress={() => {
+              router.push({
+                pathname: "/(tabs)/home/mapa/mapa",
+                params: {
+                  sheet: "sitio",
+                  sitioId: reserva.sitioId,
+                },
+              });
+            }}
+          >
+            
             <Text style={styles.cardTitle}>
               {reserva.tipo === "hotel" ? "🏨 Hotel" : "🍽️ Restaurante"}
             </Text>
@@ -210,13 +224,19 @@ export default function MisReservas() {
               Transporte: {reserva.transporte ? "Sí" : "No"}
             </Text>
 
-            <TouchableOpacity
+ 
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                scheduleNotification(reserva);
+              }}
               style={styles.button}
-              onPress={() => scheduleNotification(reserva)}
             >
-              <Text style={styles.buttonText}>Recordar esta reserva</Text>
-            </TouchableOpacity>
-          </View>
+  <Text style={styles.buttonText}>Recordar esta reserva</Text>
+</Pressable>
+
+
+          </Pressable>
         ))
       ) : selectedDate ? (
         <Text style={styles.noData}>No tienes reservas para este día</Text>
