@@ -143,6 +143,7 @@ export default function ReservaHotelScreen() {
 
       const result = await response.json();
       console.log("✅ Reserva guardada correctamente:", result);
+      console.log(token)
 
       await notificarConfirmacion(
         result.sitioNombre ?? "tu reserva",
@@ -160,6 +161,7 @@ export default function ReservaHotelScreen() {
       router.back();
     } catch (error) {
       console.log("❌ Error completoito:", error);
+      console.log(token)
       Alert.alert("Error", "No se pudo realizar la reserva");
     }
   };

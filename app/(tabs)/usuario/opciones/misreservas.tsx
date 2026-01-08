@@ -1,10 +1,7 @@
 // app/(tabs)/usuario/opciones/misreservas.tsx
 // @ts-ignore — algunos tipos de react-native-calendars no están publicados
 import { BASE_URL } from "@/src/lib/api";
-import {
-  normalizeReservasResponse,
-  type Reserva,
-} from "@/src/schemas/reservas";
+import { normalizeReservasResponse, type Reserva } from "@/src/schemas/reservas";
 import { useAuth } from "@/src/state/auth";
 import * as Notifications from "expo-notifications";
 import { useEffect, useMemo, useState } from "react";
@@ -30,7 +27,9 @@ Notifications.setNotificationHandler({
 });
 
 export default function MisReservas() {
-  const { user } = useAuth();
+  const auth = useAuth();
+  const user = auth.user;
+  const token = (auth.token ?? "").trim();
 
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [markedDates, setMarkedDates] = useState<any>({});
@@ -38,13 +37,30 @@ export default function MisReservas() {
 
   // 🔍 Cargar reservas del backend (y validar con Zod)
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !token) return;
 
     const fetchReservas = async () => {
       try {
-        const res = await fetch(`${BASE_URL}/reservas?usuarioId=${user.id}`);
-        const raw = await res.json();
+        const res = await fetch(`${BASE_URL}/reservas`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          console.log("❌ Error reservas:", res.status, text);
+
+          if (res.status === 401) {
+            Alert.alert("Sesión expirada", "Vuelve a iniciar sesión.");
+          } else {
+            Alert.alert("Error", "No se pudieron cargar tus reservas.");
+          }
+          return;
+        }
+
+        const raw = await res.json();
         const list = normalizeReservasResponse(raw); // ✅ Zod aquí
         setReservas(list);
 
@@ -80,16 +96,19 @@ export default function MisReservas() {
         setMarkedDates(marks);
       } catch (err) {
         console.error("❌ Error al obtener reservas:", err);
+        Alert.alert("Error", "No se pudieron cargar tus reservas.");
       }
     };
 
     fetchReservas();
-  }, [user?.id]);
+  }, [user?.id, token]);
 
   // 🔔 Programar recordatorio 2 horas antes
   const scheduleNotification = async (reserva: Reserva) => {
     const dateStr =
-      reserva.tipo === "hotel" ? reserva.fecha_entrada ?? null : reserva.fecha ?? null;
+      reserva.tipo === "hotel"
+        ? reserva.fecha_entrada ?? null
+        : reserva.fecha ?? null;
 
     if (!dateStr) {
       Alert.alert("Sin fecha", "Esta reserva no tiene fecha para recordatorio.");
@@ -111,8 +130,9 @@ export default function MisReservas() {
           reserva.tipo === "hotel" ? "de hotel" : "de restaurante"
         } hoy a las ${fechaAlerta.toLocaleTimeString()}.`,
       },
-      // ✅ sin "type", así evita el error de tipos
-      trigger: { seconds: triggerSeconds } as Notifications.TimeIntervalTriggerInput,
+      trigger: {
+        seconds: triggerSeconds,
+      } as Notifications.TimeIntervalTriggerInput,
     });
 
     Alert.alert("🔔 Notificación programada", "Se te recordará antes del evento");
