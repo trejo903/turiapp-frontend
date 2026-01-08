@@ -1,10 +1,7 @@
 // app/(tabs)/usuario/opciones/misreservas.tsx
 // @ts-ignore — algunos tipos de react-native-calendars no están publicados
 import { BASE_URL } from "@/src/lib/api";
-import {
-  normalizeReservasResponse,
-  type Reserva,
-} from "@/src/schemas/reservas";
+import { normalizeReservasResponse, type Reserva } from "@/src/schemas/reservas";
 import { useAuth } from "@/src/state/auth";
 import * as Notifications from "expo-notifications";
 import { useEffect, useMemo, useState } from "react";
@@ -30,7 +27,10 @@ Notifications.setNotificationHandler({
 });
 
 export default function MisReservas() {
-  const { user, token } = useAuth();
+  const auth = useAuth();
+  const user = auth.user;
+  const token = (auth.token ?? "").trim();
+
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [markedDates, setMarkedDates] = useState<any>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -47,9 +47,6 @@ export default function MisReservas() {
     }
 
     try {
-      console.log("🔍 Obteniendo reservas para usuario:", user.id);
-      console.log("🔑 Token disponible:", !!token);
-      
       const response = await fetch(`${BASE_URL}/reservas`, {
         method: "GET",
         headers: {
@@ -57,8 +54,6 @@ export default function MisReservas() {
           "Content-Type": "application/json",
         },
       });
-
-      console.log("📡 Response status:", response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -67,11 +62,9 @@ export default function MisReservas() {
       }
 
       const raw = await response.json();
-      console.log("📦 Datos recibidos del backend:", raw);
 
       // Normalizar con Zod
       const list = normalizeReservasResponse(raw);
-      console.log("✅ Reservas normalizadas:", list.length);
       
       setReservas(list);
 
@@ -123,7 +116,9 @@ export default function MisReservas() {
   // 🔔 Programar recordatorio 2 horas antes
   const scheduleNotification = async (reserva: Reserva) => {
     const dateStr =
-      reserva.tipo === "hotel" ? reserva.fecha_entrada ?? null : reserva.fecha ?? null;
+      reserva.tipo === "hotel"
+        ? reserva.fecha_entrada ?? null
+        : reserva.fecha ?? null;
 
     if (!dateStr) {
       Alert.alert("Sin fecha", "Esta reserva no tiene fecha para recordatorio.");
@@ -145,8 +140,9 @@ export default function MisReservas() {
           reserva.tipo === "hotel" ? "de hotel" : "de restaurante"
         } hoy a las ${fechaAlerta.toLocaleTimeString()}.`,
       },
-      // ✅ sin "type", así evita el error de tipos
-      trigger: { seconds: triggerSeconds } as Notifications.TimeIntervalTriggerInput,
+      trigger: {
+        seconds: triggerSeconds,
+      } as Notifications.TimeIntervalTriggerInput,
     });
 
     Alert.alert("🔔 Notificación programada", "Se te recordará antes del evento");
