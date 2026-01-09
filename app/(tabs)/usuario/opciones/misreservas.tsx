@@ -3,6 +3,8 @@
 import { BASE_URL } from "@/src/lib/api";
 import { normalizeReservasResponse, type Reserva } from "@/src/schemas/reservas";
 import { useAuth } from "@/src/state/auth";
+import { formatDateLong, formatDateTime12h } from "@/src/utils/date";
+import * as Localization from "expo-localization";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -11,7 +13,8 @@ import {
   StyleSheet,
   Text
 } from "react-native";
-import { Calendar } from "react-native-calendars";
+import { Calendar, LocaleConfig } from "react-native-calendars";
+;
 
 // 📲 Configuración de notificaciones locales
 Notifications.setNotificationHandler({
@@ -24,6 +27,9 @@ Notifications.setNotificationHandler({
   }),
 });
 
+
+
+
 export default function MisReservas() {
   const auth = useAuth();
   const user = auth.user;
@@ -34,6 +40,27 @@ export default function MisReservas() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const deviceLang = Localization.getLocales()[0]?.languageCode ?? "en";
+
+  LocaleConfig.locales["es"] = {
+    monthNames: [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+    ],
+    monthNamesShort: [
+      "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+      "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+    ],
+    dayNames: [
+      "Domingo", "Lunes", "Martes", "Miércoles",
+      "Jueves", "Viernes", "Sábado",
+    ],
+    dayNamesShort: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"],
+  };
+
+  LocaleConfig.defaultLocale = deviceLang === "es" ? "es" : "en";
+
 
   // 🔍 Cargar reservas del backend (y validar con Zod)
   const fetchReservas = async () => {
@@ -205,26 +232,57 @@ export default function MisReservas() {
               });
             }}
           >
-            
             <Text style={styles.cardTitle}>
               {reserva.tipo === "hotel" ? "🏨 Hotel" : "🍽️ Restaurante"}
             </Text>
 
+            {/* 📍 Nombre del lugar */}
+            <Text style={styles.placeName}>
+              {reserva.sitio?.nombre ?? "Lugar"}
+            </Text>
+
+            {/* 📅 Fecha / Hora */}
             <Text style={styles.cardText}>
               Fecha:{" "}
               {reserva.tipo === "hotel"
-                ? `${new Date(reserva.fecha_entrada!).toLocaleDateString()} → ${new Date(
-                    reserva.fecha_salida!
-                  ).toLocaleDateString()}`
-                : new Date(reserva.fecha!).toLocaleString()}
+                ? `${formatDateLong(reserva.fecha_entrada!)} a ${formatDateLong(
+                  reserva.fecha_salida!
+                )}`
+                : formatDateTime12h(reserva.fecha!)}
             </Text>
 
             <Text style={styles.cardText}>Nombre: {reserva.nombre ?? "-"}</Text>
-            <Text style={styles.cardText}>
-              Transporte: {reserva.transporte ? "Sí" : "No"}
-            </Text>
+            <Text style={styles.cardText}>Email: {reserva.email ?? "-"}</Text>
+            <Text style={styles.cardText}>Teléfono: {reserva.telefono ?? "-"}</Text>
+            {reserva.tipo === "restaurante" && (
+              <>
+                <Text style={styles.cardText}>
+                  Personas: {reserva.personas}
+                </Text>
 
- 
+                <Text style={styles.cardText}>
+                  Transporte: {reserva.transporte ? "Sí" : "No"}
+                </Text>
+              </>
+            )}
+            {reserva.tipo === "hotel" && (
+              <>
+                <Text style={styles.cardText}>
+                  Adultos: {reserva.adultos}
+                </Text>
+
+                <Text style={styles.cardText}>
+                  Menores: {reserva.menores}
+                </Text>
+
+                <Text style={styles.cardText}>
+                  Transporte: {reserva.transporte ? "Sí" : "No"}
+                </Text>
+              </>
+            )}
+
+
+            {/* 🔔 Botón recordatorio */}
             <Pressable
               onPress={(e) => {
                 e.stopPropagation();
@@ -232,10 +290,8 @@ export default function MisReservas() {
               }}
               style={styles.button}
             >
-  <Text style={styles.buttonText}>Recordar esta reserva</Text>
-</Pressable>
-
-
+              <Text style={styles.buttonText}>Recordar esta reserva</Text>
+            </Pressable>
           </Pressable>
         ))
       ) : selectedDate ? (
@@ -243,6 +299,7 @@ export default function MisReservas() {
       ) : (
         <Text style={styles.noData}>Selecciona un día en el calendario</Text>
       )}
+
     </ScrollView>
   );
 }
@@ -272,4 +329,11 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontStyle: "italic",
   },
+  placeName: {
+  fontSize: 16,
+  fontWeight: "600",
+  color: "#333",
+  marginBottom: 6,
+},
+
 });
