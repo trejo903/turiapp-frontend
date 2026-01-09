@@ -8,12 +8,14 @@ import {
 } from "@/src/lib/api";
 import { ANARANJADOS_CIMA_KML, KMLRoute, parseKML } from "@/src/lib/kmlParser";
 
+import { SitioWithImgs, TravelMode } from "@/src/features/mapa/types";
+import { formatImageUrl } from "@/src/features/mapa/utils";
 import { useAuth } from "@/src/state/auth";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { BottomSheetMethods } from "@gorhom/bottom-sheet/lib/typescript/types";
 import * as Location from "expo-location";
 import { Stack, useLocalSearchParams } from "expo-router";
-import React, {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -30,11 +32,9 @@ import {
 import MapView, { Marker, Polyline } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 import CLEAN_STYLE from "../../../../assets/map-style-clean.json";
-import Categoriafiltro from "./categoriaFiltro";
 import SiteBottomSheet from "../../../../src/components/mapa/SiteBottomSheet";
 import SiteMarker from "../../../../src/components/mapa/SiteMarker";
-import { formatImageUrl } from "@/src/features/mapa/utils";
-import { SitioWithImgs, TravelMode } from "@/src/features/mapa/types";
+import Categoriafiltro from "./categoriaFiltro";
 
 // ===== Helpers anti-flicker =====
 const movedEnough = (
@@ -102,7 +102,7 @@ export default function Mapa() {
   const bottomSheetRef = useRef<BottomSheetMethods | null>(null);
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
 
-  const snapPoints = useMemo(() => ["40%", "75%", "80%"], []);
+  const snapPoints = useMemo(() => ["12%", "45%", "85%"], []);
   const initialRegion = useMemo(
     () => ({
       latitude: 24.022,
